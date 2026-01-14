@@ -715,29 +715,63 @@ function calculatePositions(count, layout) {
         break;
       }
       case 'sphere': {
-        // Distribute slides evenly on sphere surface using golden angle
-        const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5 degrees
-        const y = 1 - (i / (count - 1)) * 2; // y goes from 1 to -1
-        const radiusAtY = Math.sqrt(1 - y * y);
-        const theta = goldenAngle * i;
+        // === SPHERE LAYOUT ===
+        // Imagine pulling a string from the center of the sphere outward in a random direction.
+        // Where it intersects the sphere surface is where a slide is placed.
+        // The slide faces outward (away from center).
+        // The camera is even further out along that same line, looking back at the slide.
 
-        const radius = 2500;
-        const x = Math.cos(theta) * radiusAtY * radius;
-        const z = Math.sin(theta) * radiusAtY * radius;
+        // Calculate sphere radius based on total slide area
+        // Each slide is 1200x700 = 840,000 sq pixels
+        // Sphere surface area should be ~5x total slide area for comfortable spacing
+        const slideWidth = 1200;
+        const slideHeight = 700;
+        const slideArea = slideWidth * slideHeight;
+        const totalSlideArea = count * slideArea;
+        const sphereSurfaceArea = 5 * totalSlideArea;
+        // Surface area of sphere = 4πr², so r = sqrt(surfaceArea / 4π)
+        const radius = Math.sqrt(sphereSurfaceArea / (4 * Math.PI));
+
+        // Use Fibonacci sphere algorithm for even distribution across the sphere
+        // This gives much better spacing than random placement
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5° - the golden angle
+
+        // y goes from near-top to near-bottom (avoiding exact poles where rotation is undefined)
+        // For single slide, place at equator
+        const t = count === 1 ? 0.5 : i / (count - 1);
+        const y = 0.9 - t * 1.8; // y from 0.9 to -0.9
+
+        // Radius at this y level on unit sphere: sqrt(1 - y²)
+        const radiusAtY = Math.sqrt(1 - y * y);
+
+        // Azimuthal angle using golden angle for even spacing around the sphere
+        const phi = i * goldenAngle;
+
+        // Convert to Cartesian coordinates on the sphere surface
+        const x = Math.cos(phi) * radiusAtY * radius;
+        const z = Math.sin(phi) * radiusAtY * radius;
         const yPos = y * radius;
 
-        // Calculate rotations to face center (slides face inward)
-        // rotateY: horizontal rotation to face center
-        const rotY = Math.atan2(x, z) * (180 / Math.PI);
-        // rotateX: vertical tilt to face center
-        const rotX = Math.atan2(yPos, Math.sqrt(x * x + z * z)) * (180 / Math.PI);
+        // Calculate rotation so the slide faces OUTWARD from sphere center
+        // The slide's default orientation faces +Z direction
+        // We need to rotate it to face the outward radial direction
+
+        // rotateY: rotation around Y axis to face the correct azimuthal direction
+        // atan2(x, z) gives the angle from +Z toward +X
+        const rotateY = Math.atan2(x, z) * (180 / Math.PI);
+
+        // rotateX: tilt up or down based on latitude
+        // At y=0 (equator): no tilt needed (rotateX = 0)
+        // At y>0 (upper hemisphere): tilt up (negative rotateX)
+        // At y<0 (lower hemisphere): tilt down (positive rotateX)
+        const rotateX = -Math.asin(y) * (180 / Math.PI);
 
         pos = {
-          x: x,
-          y: yPos,
-          z: z,
-          rotateX: -rotX,
-          rotateY: rotY + 180, // +180 to face inward
+          x: Math.round(x),
+          y: Math.round(yPos),
+          z: Math.round(z),
+          rotateX: Math.round(rotateX),
+          rotateY: Math.round(rotateY),
           rotateZ: 0,
           scale: 1,
         };
