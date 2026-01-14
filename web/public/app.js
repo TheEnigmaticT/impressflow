@@ -1,0 +1,1104 @@
+/**
+ * ImpressFlow Web Application
+ * Client-side application for generating presentations
+ */
+
+// DOM Elements
+const markdownTab = document.querySelector('[data-tab="markdown"]');
+const notionTab = document.querySelector('[data-tab="notion"]');
+const markdownTabContent = document.getElementById('markdown-tab');
+const notionTabContent = document.getElementById('notion-tab');
+const markdownInput = document.getElementById('markdown-input');
+const notionUrl = document.getElementById('notion-url');
+const themeSelect = document.getElementById('theme-select');
+const layoutSelect = document.getElementById('layout-select');
+const generateImagesCheckbox = document.getElementById('generate-images');
+const apiKeySection = document.getElementById('api-key-section');
+const geminiApiKeyInput = document.getElementById('gemini-api-key');
+const generateBtn = document.getElementById('generate-btn');
+const btnText = generateBtn.querySelector('.btn-text');
+const btnLoading = generateBtn.querySelector('.btn-loading');
+const previewIframe = document.getElementById('preview-iframe');
+const previewPlaceholder = document.querySelector('.preview-placeholder');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+const downloadBtn = document.getElementById('download-btn');
+
+// State
+let currentTab = 'markdown';
+let generatedHtml = null;
+
+// Embedded impress.js (no CDN dependency)
+const IMPRESS_JS = `(function(document, window) {
+  'use strict';
+  var pfx = (function() {
+    var style = document.createElement('dummy').style,
+        prefixes = 'Webkit Moz O ms Khtml'.split(' '),
+        memory = {};
+    return function(prop) {
+      if (typeof memory[prop] === 'undefined') {
+        var ucProp = prop.charAt(0).toUpperCase() + prop.substr(1),
+            props = (prop + ' ' + prefixes.join(ucProp + ' ') + ucProp).split(' ');
+        memory[prop] = null;
+        for (var i in props) {
+          if (style[props[i]] !== undefined) {
+            memory[prop] = props[i];
+            break;
+          }
+        }
+      }
+      return memory[prop];
+    };
+  })();
+  var body = document.body;
+  var impressSupported = (pfx('perspective') !== null) && (body.classList) && (body.dataset);
+  var roots = {};
+  var defaults = { width: 1024, height: 768, maxScale: 1, minScale: 0, perspective: 1000, transitionDuration: 1000 };
+  var impress = window.impress = function(rootId) {
+    rootId = rootId || 'impress';
+    if (roots['impress-root-' + rootId]) return roots['impress-root-' + rootId];
+    var stepsData = {}, activeStep = null, currentState = null, steps = null, config = null, windowScale = null;
+    var root = document.getElementById(rootId);
+    var canvas = document.createElement('div');
+    var initialized = false, lastEntered = null;
+    var computeWindowScale = function(config) {
+      var hScale = window.innerHeight / config.height, wScale = window.innerWidth / config.width;
+      var scale = hScale > wScale ? wScale : hScale;
+      if (config.maxScale && scale > config.maxScale) scale = config.maxScale;
+      if (config.minScale && scale < config.minScale) scale = config.minScale;
+      return scale;
+    };
+    var css = function(el, props) {
+      for (var key in props) { if (props.hasOwnProperty(key)) { var pkey = pfx(key); if (pkey !== null) el.style[pkey] = props[key]; } }
+      return el;
+    };
+    var translate = function(t) { return ' translate3d(' + t.x + 'px,' + t.y + 'px,' + t.z + 'px) '; };
+    var rotate = function(r) { return ' rotateX(' + r.x + 'deg) rotateY(' + r.y + 'deg) rotateZ(' + r.z + 'deg) '; };
+    var scale = function(s) { return ' scale(' + s + ') '; };
+    var perspective = function(p) { return ' perspective(' + p + 'px) '; };
+    var getElementFromHash = function() { var h = window.location.hash.substring(1); if (h.charAt(0) === '/') h = h.substring(1); return document.getElementById(h); };
+    var triggerEvent = function(el, eventName, detail) {
+      var event = document.createEvent('CustomEvent');
+      event.initCustomEvent(eventName, true, true, detail);
+      el.dispatchEvent(event);
+    };
+    var initStep = function(el, idx) {
+      var data = el.dataset;
+      var step = {
+        translate: { x: Number(data.x) || 0, y: Number(data.y) || 0, z: Number(data.z) || 0 },
+        rotate: { x: Number(data.rotateX) || 0, y: Number(data.rotateY) || 0, z: Number(data.rotateZ) || Number(data.rotate) || 0 },
+        scale: Number(data.scale) || 1, el: el
+      };
+      if (!el.id) el.id = 'step-' + (idx + 1);
+      stepsData['impress-' + el.id] = step;
+      var transformStr = translate(step.translate) + rotate(step.rotate) + scale(step.scale);
+      css(el, { position: 'absolute', transform: 'translate(-50%,-50%) ' + transformStr, transformStyle: 'preserve-3d' });
+    };
+    var init = function() {
+      if (initialized) return;
+      body.classList.remove('impress-not-supported');
+      body.classList.add('impress-supported');
+      body.classList.add('impress-enabled');
+      root.style.position = 'absolute'; root.style.left = '50%'; root.style.top = '50%';
+      config = {
+        width: Number(root.dataset.width) || defaults.width,
+        height: Number(root.dataset.height) || defaults.height,
+        maxScale: Number(root.dataset.maxScale) || defaults.maxScale,
+        minScale: Number(root.dataset.minScale) || defaults.minScale,
+        perspective: Number(root.dataset.perspective) || defaults.perspective,
+        transitionDuration: Number(root.dataset.transitionDuration) || defaults.transitionDuration
+      };
+      windowScale = computeWindowScale(config);
+      css(root, { transform: perspective(config.perspective / windowScale) + scale(windowScale), transformStyle: 'preserve-3d', transformOrigin: '0 0' });
+      canvas.id = 'impress-canvas';
+      while (root.firstChild) canvas.appendChild(root.firstChild);
+      root.appendChild(canvas);
+      css(canvas, { position: 'absolute', top: '0px', left: '0px', transformOrigin: '0 0', transformStyle: 'preserve-3d', transition: 'all ' + (config.transitionDuration / 1000) + 's ease-in-out' });
+      steps = canvas.querySelectorAll('.step');
+      steps.forEach(initStep);
+      currentState = { translate: { x: 0, y: 0, z: 0 }, rotate: { x: 0, y: 0, z: 0 }, scale: 1 };
+      initialized = true;
+      triggerEvent(root, 'impress:init', { api: roots['impress-root-' + rootId] });
+    };
+    var getStep = function(step) {
+      if (typeof step === 'number') step = step < 0 ? steps[steps.length + step] : steps[step];
+      else if (typeof step === 'string') step = document.getElementById(step);
+      return (step && step.id && stepsData['impress-' + step.id]) ? step : null;
+    };
+    var goto = function(el) {
+      if (!initialized || !(el = getStep(el))) return false;
+      if (activeStep) { activeStep.classList.remove('active'); body.classList.remove('impress-on-' + activeStep.id); }
+      el.classList.add('active');
+      body.classList.add('impress-on-' + el.id);
+      var step = stepsData['impress-' + el.id];
+      currentState = {
+        translate: { x: -step.translate.x, y: -step.translate.y, z: -step.translate.z },
+        rotate: { x: -step.rotate.x, y: -step.rotate.y, z: -step.rotate.z },
+        scale: 1 / step.scale
+      };
+      windowScale = computeWindowScale(config);
+      var rootTransform = perspective(config.perspective / windowScale) + scale(windowScale * currentState.scale);
+      var canvasTransform = rotate(currentState.rotate) + translate(currentState.translate);
+      css(root, { transform: rootTransform, transitionDuration: config.transitionDuration + 'ms' });
+      css(canvas, { transform: canvasTransform, transitionDuration: config.transitionDuration + 'ms' });
+      if (activeStep !== el) {
+        if (lastEntered) triggerEvent(lastEntered, 'impress:stepleave', {});
+        triggerEvent(el, 'impress:stepenter', {});
+        lastEntered = el;
+      }
+      activeStep = el;
+      window.location.hash = '#/' + el.id;
+      return el;
+    };
+    var prev = function() { var p = steps.indexOf(activeStep) - 1; return goto(p >= 0 ? steps[p] : steps[steps.length - 1]); };
+    var next = function() { var n = steps.indexOf(activeStep) + 1; return goto(n < steps.length ? steps[n] : steps[0]); };
+    if (!impressSupported) { body.classList.add('impress-not-supported'); return; }
+    root.addEventListener('impress:init', function() { steps = Array.from(steps); goto(getElementFromHash() || steps[0]); }, false);
+    window.addEventListener('hashchange', function() { var t = getElementFromHash(); if (t && t !== activeStep) goto(t); }, false);
+    window.addEventListener('resize', function() { windowScale = computeWindowScale(config); css(root, { transform: perspective(config.perspective / windowScale) + scale(windowScale * currentState.scale) }); }, false);
+    document.addEventListener('keydown', function(e) {
+      if (e.keyCode === 9 || (e.keyCode >= 32 && e.keyCode <= 40)) {
+        switch (e.keyCode) { case 33: case 37: case 38: prev(); break; case 9: case 32: case 34: case 39: case 40: next(); break; }
+        e.preventDefault();
+      }
+    }, false);
+    document.addEventListener('click', function(e) {
+      var t = e.target;
+      while (t && t !== document.documentElement) { if (t.classList.contains('step')) { if (t !== activeStep) goto(t); break; } t = t.parentNode; }
+    }, false);
+    roots['impress-root-' + rootId] = { init: init, goto: goto, next: next, prev: prev };
+    return roots['impress-root-' + rootId];
+  };
+})(document, window);`;
+
+// Sample markdown for demo
+const sampleMarkdown = `---
+title: Welcome to ImpressFlow
+theme: tech-dark
+layout: spiral
+---
+
+# Welcome to ImpressFlow
+
+Transform your ideas into stunning 3D presentations
+
+---
+
+# Simple Markdown Input
+
+Write your content in familiar Markdown syntax:
+- Headers become slide titles
+- Use \`---\` to separate slides
+- Add code blocks, quotes, and more
+
+---
+
+# Beautiful Themes
+
+Choose from 5 professional themes:
+- **Tech Dark** - Modern, sleek design
+- **Clean Light** - Minimal, professional
+- **Creative** - Bold and colorful
+- **Corporate** - Classic business style
+- **Workshop** - Hands-on, technical
+
+---
+
+# 3D Layouts
+
+Six unique spatial arrangements:
+1. Spiral - Classic impress.js flow
+2. Grid - Organized matrix
+3. Herringbone - Zigzag pattern
+4. Zoom - Depth-based navigation
+5. Sphere - 3D orbital layout
+6. Cascade - Waterfall effect
+
+---
+
+# Get Started
+
+1. Write your Markdown
+2. Choose theme and layout
+3. Click Generate
+4. Present!
+`;
+
+// Initialize
+function init() {
+  // Set sample markdown
+  markdownInput.value = sampleMarkdown;
+
+  // Tab switching
+  markdownTab.addEventListener('click', () => switchTab('markdown'));
+  notionTab.addEventListener('click', () => switchTab('notion'));
+
+  // Generate button
+  generateBtn.addEventListener('click', handleGenerate);
+
+  // Preview actions
+  fullscreenBtn.addEventListener('click', openFullscreen);
+  downloadBtn.addEventListener('click', downloadHtml);
+
+  // API Key toggle
+  generateImagesCheckbox.addEventListener('change', (e) => {
+    apiKeySection.style.display = e.target.checked ? 'flex' : 'none';
+  });
+
+  // Load saved API key
+  const savedApiKey = localStorage.getItem('gemini-api-key');
+  if (savedApiKey) {
+    geminiApiKeyInput.value = savedApiKey;
+  }
+
+  // Save API key on change
+  geminiApiKeyInput.addEventListener('change', (e) => {
+    localStorage.setItem('gemini-api-key', e.target.value);
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      handleGenerate();
+    }
+  });
+
+  // Handle window resize - update iframe dimensions
+  window.addEventListener('resize', () => {
+    if (generatedHtml && previewIframe.classList.contains('visible')) {
+      const container = previewIframe.parentElement;
+      const rect = container.getBoundingClientRect();
+      previewIframe.style.width = rect.width + 'px';
+      previewIframe.style.height = rect.height + 'px';
+    }
+  });
+}
+
+// Tab switching
+function switchTab(tab) {
+  currentTab = tab;
+
+  // Update tab buttons
+  markdownTab.classList.toggle('active', tab === 'markdown');
+  notionTab.classList.toggle('active', tab === 'notion');
+
+  // Update tab content
+  markdownTabContent.classList.toggle('active', tab === 'markdown');
+  notionTabContent.classList.toggle('active', tab === 'notion');
+}
+
+// Generate presentation
+async function handleGenerate() {
+  const theme = themeSelect.value;
+  const layout = layoutSelect.value;
+  const generateImages = generateImagesCheckbox.checked;
+  const apiKey = geminiApiKeyInput.value.trim();
+
+  let source, sourceType;
+
+  if (currentTab === 'markdown') {
+    source = markdownInput.value.trim();
+    sourceType = 'markdown';
+
+    if (!source) {
+      showToast('Please enter some Markdown content', 'error');
+      return;
+    }
+  } else {
+    source = notionUrl.value.trim();
+    sourceType = source.includes('notion.site') ? 'notion-public' : 'notion-api';
+
+    if (!source) {
+      showToast('Please enter a Notion URL', 'error');
+      return;
+    }
+  }
+
+  // Check for API key if images are requested
+  if (generateImages && !apiKey) {
+    showToast('Please enter a Gemini API key to generate images', 'error');
+    return;
+  }
+
+  // Show loading state
+  setLoading(true);
+
+  try {
+    // Generate HTML (async for image generation)
+    console.log('Generating presentation...');
+    generatedHtml = await generatePresentation(source, theme, layout, apiKey, generateImages);
+    console.log('Generated HTML length:', generatedHtml.length);
+
+    // Update preview
+    showPreview(generatedHtml);
+
+    showToast('Presentation generated successfully!', 'success');
+  } catch (error) {
+    console.error('Generation error:', error);
+    showToast(error.message || 'Failed to generate presentation', 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Generate presentation HTML (client-side)
+async function generatePresentation(markdown, theme, layout, apiKey, generateImages) {
+  // Quick-parse frontmatter to get theme for image generation
+  const fmMatch = markdown.match(/^---\n([\s\S]*?)\n---/);
+  let frontmatterTheme = null;
+  if (fmMatch) {
+    const themeMatch = fmMatch[1].match(/^theme:\s*(.+)$/m);
+    if (themeMatch) frontmatterTheme = themeMatch[1].trim();
+  }
+
+  // Determine theme early for image styling
+  const finalTheme = theme || frontmatterTheme || 'tech-dark';
+
+  // Process images first (before parsing) with theme for styling
+  const processedMarkdown = await processImagesInMarkdown(markdown, apiKey, generateImages, finalTheme);
+
+  // Parse markdown
+  const { frontmatter, slides } = parseMarkdown(processedMarkdown);
+
+  // Use frontmatter values as defaults for layout
+  const finalLayout = layout || frontmatter.layout || 'spiral';
+
+  // Calculate positions
+  const positions = calculatePositions(slides.length, finalLayout);
+
+  // Generate slides HTML
+  const slidesHtml = slides.map((slide, i) => {
+    const pos = positions[i];
+    return `
+      <div id="slide-${i + 1}"
+           class="step slide"
+           data-x="${pos.x}"
+           data-y="${pos.y}"
+           data-z="${pos.z}"
+           data-rotate-x="${pos.rotateX}"
+           data-rotate-y="${pos.rotateY}"
+           data-rotate-z="${pos.rotateZ}"
+           data-scale="${pos.scale}">
+        <div class="slide-content">
+          ${slide.html}
+        </div>
+      </div>
+    `;
+  }).join('\n');
+
+  // Build full HTML
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${frontmatter.title || 'ImpressFlow Presentation'}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    ${getThemeCSS(finalTheme)}
+    ${getBaseCSS()}
+  </style>
+</head>
+<body class="impress-not-supported">
+  <div id="impress" data-width="1200" data-height="700">
+    ${slidesHtml}
+    <div id="overview" class="step" data-x="0" data-y="0" data-scale="10"></div>
+  </div>
+  <script>${IMPRESS_JS}<\/script>
+  <script>impress().init();<\/script>
+</body>
+</html>`;
+}
+
+// Parse markdown into slides
+function parseMarkdown(content) {
+  // Extract frontmatter
+  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  let frontmatter = {};
+  let body = content;
+
+  if (frontmatterMatch) {
+    const fmLines = frontmatterMatch[1].split('\n');
+    for (const line of fmLines) {
+      const [key, ...valueParts] = line.split(':');
+      if (key && valueParts.length) {
+        frontmatter[key.trim()] = valueParts.join(':').trim();
+      }
+    }
+    body = frontmatterMatch[2];
+  }
+
+  // Split into slides
+  const slideTexts = body.split(/\n---\n/).filter(s => s.trim());
+
+  const slides = slideTexts.map((text, index) => {
+    // Convert markdown to HTML
+    const html = markdownToHtml(text.trim());
+    const titleMatch = text.match(/^#\s+(.+)$/m);
+
+    return {
+      index,
+      title: titleMatch ? titleMatch[1] : `Slide ${index + 1}`,
+      html,
+    };
+  });
+
+  return { frontmatter, slides };
+}
+
+// Extract image generation requests from markdown
+function extractImageRequests(md) {
+  const requests = [];
+  const regex = /!\[image:\s*([^\]]+)\]\(([^)]*)\)/gi;
+  let match;
+  while ((match = regex.exec(md)) !== null) {
+    const fallbackUrl = match[2].trim();
+    requests.push({
+      fullMatch: match[0],
+      prompt: match[1].trim(),
+      fallback: fallbackUrl && fallbackUrl !== 'placeholder' ? fallbackUrl : null
+    });
+  }
+  return requests;
+}
+
+// Theme-specific image style prompts
+function getImageStyleForTheme(theme) {
+  const styles = {
+    'tech-dark': {
+      style: 'Simple abstract geometric shapes combining to form a cohesive illustration. Minimalist, modern, clean lines. Low-poly or vector art aesthetic. Dark background.',
+      colors: 'Use cyan (#00d4ff) as the primary accent color, with purple (#7c3aed) as secondary. Subtle use of pink (#f472b6) for highlights. Dark navy/black (#0a0a0f) background.'
+    },
+    'clean-light': {
+      style: 'Corporate Memphis illustration style. Flat design with simple shapes, elongated limbs on human figures, playful but professional. Minimal shadows, bold simple forms.',
+      colors: 'Use blue (#2563eb) as primary color, with slate gray (#64748b) for secondary elements. Amber/orange (#f59e0b) for accents. Clean white (#ffffff) background.'
+    },
+    'creative': {
+      style: 'Collage-style illustration with pieced-together elements. Mixed media aesthetic, vibrant and bold. Neo-brutalist influence with raw, unpolished edges. Overlapping shapes and textures.',
+      colors: 'Vibrant pink (#ec4899) as primary, purple (#8b5cf6) secondary, cyan (#06b6d4) accents. Warm cream (#fef3c7) background. High contrast, bold color blocking.'
+    },
+    'corporate': {
+      style: 'Simple, refined, reserved aesthetic. Photorealistic or clean 3D rendered style. Professional and polished. Subtle gradients, soft lighting, premium feel.',
+      colors: 'Deep blue (#1e40af) as primary, professional slate (#475569) secondary, green (#059669) for accents. Light gray (#f8fafc) background. Muted, sophisticated palette.'
+    },
+    'workshop': {
+      style: 'Hand-drawn watercolor illustration style. Sketchy, artistic, looks hand-crafted. Pen and ink aesthetic with watercolor washes. Whiteboard or notebook sketch feel.',
+      colors: 'Green (#22c55e) as primary color, purple (#a855f7) secondary, yellow (#eab308) accents. Dark charcoal (#18181b) background with illustrations appearing on light paper or whiteboard areas.'
+    }
+  };
+
+  return styles[theme] || styles['tech-dark'];
+}
+
+// Generate image using Gemini API
+async function generateImage(prompt, apiKey, theme) {
+  const themeStyle = getImageStyleForTheme(theme);
+  const enhancedPrompt = `${prompt}.
+
+Art Style: ${themeStyle.style}
+
+Color Palette: ${themeStyle.colors}
+
+Format: 16:9 aspect ratio, high quality, suitable for presentation slide.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: `Generate an image: ${enhancedPrompt}` }]
+          }],
+          generationConfig: {
+            responseModalities: ['image', 'text'],
+            responseMimeType: 'text/plain'
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Extract image data from response
+    if (data.candidates?.[0]?.content?.parts) {
+      for (const part of data.candidates[0].content.parts) {
+        if (part.inlineData?.mimeType?.startsWith('image/')) {
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    throw new Error('No image in response');
+  } catch (error) {
+    console.error('Image generation failed:', error);
+    return null;
+  }
+}
+
+// Create placeholder SVG for images
+function createImagePlaceholder(prompt) {
+  const truncated = prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="225" viewBox="0 0 400 225">
+    <rect width="400" height="225" fill="#1a1a2e" stroke="#7c3aed" stroke-width="2" stroke-dasharray="8,4"/>
+    <text x="200" y="100" text-anchor="middle" fill="#8888aa" font-family="sans-serif" font-size="14">AI Image</text>
+    <text x="200" y="125" text-anchor="middle" fill="#666" font-family="sans-serif" font-size="11">${truncated}</text>
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+// Process markdown and generate images
+async function processImagesInMarkdown(md, apiKey, generateImages, theme) {
+  const requests = extractImageRequests(md);
+
+  if (requests.length === 0) return md;
+
+  let result = md;
+
+  for (const req of requests) {
+    let imageUrl;
+
+    if (generateImages && apiKey) {
+      showToast(`Generating image: ${req.prompt.substring(0, 30)}...`, 'info');
+      imageUrl = await generateImage(req.prompt, apiKey, theme);
+    }
+
+    // Fall back to: 1) provided fallback URL, 2) placeholder SVG
+    if (!imageUrl) {
+      imageUrl = req.fallback || createImagePlaceholder(req.prompt);
+    }
+
+    // Replace the markdown image syntax with an img tag
+    result = result.replace(req.fullMatch, `<img src="${imageUrl}" alt="${req.prompt}" class="ai-image">`);
+  }
+
+  return result;
+}
+
+// Parse column layout directives
+function parseColumnLayout(md) {
+  // Check for column layout directive (more lenient regex)
+  const twoColMatch = md.match(/:::\s*two-column\s*\n([\s\S]*?)\n\s*:::/);
+  const threeColMatch = md.match(/:::\s*three-column\s*\n([\s\S]*?)\n\s*:::/);
+
+  // Parse columns from content - splits on +++ and extracts metadata
+  function parseColumns(content) {
+    const columns = [];
+    // Match each column: +++ followed by optional metadata, then content until next +++ or end
+    const regex = /\+\+\+([^\n]*)\n([\s\S]*?)(?=\n\+\+\+|$)/g;
+    let match;
+
+    while ((match = regex.exec(content)) !== null) {
+      const metadata = match[1].trim();
+      const colContent = match[2].trim();
+      const hasSpan2 = metadata.includes('{.span-2}');
+      columns.push({
+        content: colContent,
+        span2: hasSpan2
+      });
+    }
+    return columns;
+  }
+
+  // Helper to render a column
+  function renderColumn(col) {
+    const spanClass = col.span2 ? ' span-2' : '';
+    return `<div class="column${spanClass}">${markdownToHtmlBasic(col.content)}</div>`;
+  }
+
+  if (twoColMatch) {
+    const content = twoColMatch[1];
+    const columns = parseColumns(content);
+    const colHtml = columns.map(renderColumn).join('');
+
+    const before = md.substring(0, twoColMatch.index);
+    const after = md.substring(twoColMatch.index + twoColMatch[0].length);
+    return {
+      html: markdownToHtmlBasic(before) + `<div class="columns two-column">${colHtml}</div>` + markdownToHtmlBasic(after),
+      hasColumns: true
+    };
+  }
+
+  if (threeColMatch) {
+    const content = threeColMatch[1];
+    const columns = parseColumns(content);
+    const colHtml = columns.map(renderColumn).join('');
+
+    const before = md.substring(0, threeColMatch.index);
+    const after = md.substring(threeColMatch.index + threeColMatch[0].length);
+    return {
+      html: markdownToHtmlBasic(before) + `<div class="columns three-column">${colHtml}</div>` + markdownToHtmlBasic(after),
+      hasColumns: true
+    };
+  }
+
+  return { html: null, hasColumns: false };
+}
+
+// Basic markdown to HTML (without column parsing to avoid recursion)
+function markdownToHtmlBasic(md) {
+  return md
+    // Code blocks
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // Bold and italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Images (already processed, just pass through img tags)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
+    // Lists
+    .replace(/^\d+\. (.+)$/gm, '<li class="ordered">$1</li>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    // Wrap consecutive list items
+    .replace(/(<li class="ordered">.*<\/li>\n?)+/gs, '<ol>$&</ol>')
+    .replace(/(<li>.*<\/li>\n?)+/gs, '<ul>$&</ul>')
+    // Blockquotes
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    // Paragraphs
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^([^<].+)$/gm, '<p>$1</p>')
+    // Clean up empty paragraphs
+    .replace(/<p><\/p>/g, '')
+    .replace(/<p>(<h|<ul|<ol|<pre|<blockquote|<img|<div)/g, '$1')
+    .replace(/(<\/h\d>|<\/ul>|<\/ol>|<\/pre>|<\/blockquote>|<\/div>)<\/p>/g, '$1');
+}
+
+// Simple markdown to HTML conversion with column support
+function markdownToHtml(md) {
+  // First check for column layouts
+  const columnResult = parseColumnLayout(md);
+  if (columnResult.hasColumns) {
+    return columnResult.html;
+  }
+
+  return markdownToHtmlBasic(md);
+}
+
+// Calculate slide positions
+function calculatePositions(count, layout) {
+  const positions = [];
+
+  for (let i = 0; i < count; i++) {
+    let pos;
+
+    switch (layout) {
+      case 'grid': {
+        const cols = Math.ceil(Math.sqrt(count));
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        pos = { x: col * 1500, y: row * 1000, z: 0, rotateX: 0, rotateY: 0, rotateZ: 0, scale: 1 };
+        break;
+      }
+      case 'herringbone': {
+        const direction = i % 2 === 0 ? 1 : -1;
+        pos = {
+          x: i * 800,
+          y: direction * 400,
+          z: 0,
+          rotateX: 0,
+          rotateY: 0,
+          rotateZ: direction * 15,
+          scale: 1,
+        };
+        break;
+      }
+      case 'zoom': {
+        pos = { x: 0, y: 0, z: -i * 3000, rotateX: 0, rotateY: 0, rotateZ: 0, scale: Math.pow(0.8, i) };
+        break;
+      }
+      case 'sphere': {
+        // Distribute slides evenly on sphere surface using golden angle
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5 degrees
+        const y = 1 - (i / (count - 1)) * 2; // y goes from 1 to -1
+        const radiusAtY = Math.sqrt(1 - y * y);
+        const theta = goldenAngle * i;
+
+        const radius = 2500;
+        const x = Math.cos(theta) * radiusAtY * radius;
+        const z = Math.sin(theta) * radiusAtY * radius;
+        const yPos = y * radius;
+
+        // Calculate rotations to face center (slides face inward)
+        // rotateY: horizontal rotation to face center
+        const rotY = Math.atan2(x, z) * (180 / Math.PI);
+        // rotateX: vertical tilt to face center
+        const rotX = Math.atan2(yPos, Math.sqrt(x * x + z * z)) * (180 / Math.PI);
+
+        pos = {
+          x: x,
+          y: yPos,
+          z: z,
+          rotateX: -rotX,
+          rotateY: rotY + 180, // +180 to face inward
+          rotateZ: 0,
+          scale: 1,
+        };
+        break;
+      }
+      case 'cascade': {
+        // Waterfall effect with better separation
+        pos = {
+          x: i * 300,
+          y: i * 250,
+          z: -i * 800,
+          rotateX: 15,
+          rotateY: -10,
+          rotateZ: 0,
+          scale: 1 - (i * 0.05), // Slightly smaller as they go back
+        };
+        break;
+      }
+      case 'spiral':
+      default: {
+        const angle = (i / count) * Math.PI * 4;
+        const radius = 800 + i * 200;
+        pos = {
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+          z: -i * 500,
+          rotateX: 0,
+          rotateY: 0,
+          rotateZ: (angle * 180) / Math.PI,
+          scale: 1,
+        };
+        break;
+      }
+    }
+
+    positions.push(pos);
+  }
+
+  return positions;
+}
+
+// Theme CSS
+function getThemeCSS(theme) {
+  const themes = {
+    'tech-dark': {
+      '--background': '#0a0a0f',
+      '--foreground': '#ffffff',
+      '--primary': '#00d4ff',
+      '--secondary': '#7c3aed',
+      '--accent': '#f472b6',
+      '--muted': '#8888aa',
+    },
+    'clean-light': {
+      '--background': '#ffffff',
+      '--foreground': '#1a1a1a',
+      '--primary': '#2563eb',
+      '--secondary': '#64748b',
+      '--accent': '#f59e0b',
+      '--muted': '#666666',
+    },
+    'creative': {
+      '--background': '#fef3c7',
+      '--foreground': '#1e1b4b',
+      '--primary': '#ec4899',
+      '--secondary': '#8b5cf6',
+      '--accent': '#06b6d4',
+      '--muted': '#6b7280',
+    },
+    'corporate': {
+      '--background': '#f8fafc',
+      '--foreground': '#0f172a',
+      '--primary': '#1e40af',
+      '--secondary': '#475569',
+      '--accent': '#059669',
+      '--muted': '#64748b',
+    },
+    'workshop': {
+      '--background': '#18181b',
+      '--foreground': '#fafafa',
+      '--primary': '#22c55e',
+      '--secondary': '#a855f7',
+      '--accent': '#eab308',
+      '--muted': '#a1a1aa',
+    },
+  };
+
+  const colors = themes[theme] || themes['tech-dark'];
+  return `:root {
+    ${Object.entries(colors).map(([k, v]) => `${k}: ${v};`).join('\n    ')}
+  }`;
+}
+
+// Base CSS for presentations
+function getBaseCSS() {
+  return `
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: var(--background);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--foreground);
+    }
+
+    /* impress.js handles positioning dynamically - don't override */
+    .impress-enabled #impress {
+      position: absolute;
+      transform-origin: top left;
+      transition: all 1s ease-in-out;
+    }
+
+    .impress-enabled #impress-canvas {
+      position: absolute;
+      transform-origin: top left;
+      transition: all 1s ease-in-out;
+    }
+
+    .step.slide {
+      width: 1200px;
+      height: 700px;
+      padding: 60px;
+      box-sizing: border-box;
+      background: var(--background);
+      border-radius: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .slide h1 {
+      font-size: 3.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      line-height: 1.2;
+    }
+
+    .slide h2 {
+      font-size: 2.5rem;
+      font-weight: 600;
+      color: var(--secondary);
+      margin-bottom: 1rem;
+    }
+
+    .slide h3 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--foreground);
+      margin-bottom: 0.75rem;
+    }
+
+    .slide p {
+      font-size: 1.5rem;
+      line-height: 1.7;
+      margin-bottom: 1rem;
+      color: var(--foreground);
+    }
+
+    .slide ul, .slide ol {
+      font-size: 1.5rem;
+      line-height: 1.8;
+      margin-left: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .slide li {
+      margin-bottom: 0.5rem;
+    }
+
+    .slide code {
+      background: rgba(0,0,0,0.2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9em;
+    }
+
+    .slide pre {
+      background: rgba(0,0,0,0.3);
+      padding: 1.5rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+    }
+
+    .slide pre code {
+      background: none;
+      padding: 0;
+      font-size: 1.1rem;
+      line-height: 1.5;
+    }
+
+    .slide blockquote {
+      border-left: 4px solid var(--primary);
+      padding-left: 1.5rem;
+      font-style: italic;
+      font-size: 1.75rem;
+      color: var(--muted);
+      margin: 1.5rem 0;
+    }
+
+    .slide strong {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Fallback: show first slide if impress.js fails */
+    .impress-not-supported .step {
+      position: relative;
+      margin: 20px auto;
+      opacity: 1;
+    }
+
+    .impress-not-supported #impress {
+      position: relative;
+      overflow: auto;
+      height: auto;
+    }
+
+    .impress-enabled .step {
+      opacity: 0.3;
+      transition: opacity 0.5s;
+    }
+
+    .impress-enabled .step.active {
+      opacity: 1;
+    }
+
+    #overview {
+      pointer-events: none;
+    }
+
+    /* Column layouts */
+    .columns {
+      display: grid;
+      gap: 40px;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .columns.two-column {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .columns.three-column {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .column h3 {
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+      font-size: 1.5rem;
+    }
+
+    /* Column spanning */
+    .column.span-2 {
+      grid-column: span 2;
+    }
+
+    /* AI generated images */
+    .ai-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+
+    .slide-content img {
+      max-width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+  `;
+}
+
+// Show preview
+function showPreview(html) {
+  // Get the actual container dimensions and set explicit pixel dimensions
+  const container = previewIframe.parentElement;
+  const containerRect = container.getBoundingClientRect();
+  previewIframe.style.width = containerRect.width + 'px';
+  previewIframe.style.height = containerRect.height + 'px';
+
+  // Set the content
+  previewIframe.srcdoc = html;
+  previewIframe.classList.add('visible');
+  previewPlaceholder.classList.add('hidden');
+}
+
+// Open fullscreen
+function openFullscreen() {
+  if (!generatedHtml) {
+    showToast('Generate a presentation first', 'error');
+    return;
+  }
+
+  const newWindow = window.open('', '_blank');
+  newWindow.document.write(generatedHtml);
+  newWindow.document.close();
+}
+
+// Download HTML
+function downloadHtml() {
+  if (!generatedHtml) {
+    showToast('Generate a presentation first', 'error');
+    return;
+  }
+
+  const blob = new Blob([generatedHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'presentation.html';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('Downloaded presentation.html', 'success');
+}
+
+// Set loading state
+function setLoading(loading) {
+  console.log('setLoading called with:', loading);
+  generateBtn.disabled = loading;
+  btnText.style.display = loading ? 'none' : 'inline';
+  btnLoading.style.display = loading ? 'inline-flex' : 'none';
+}
+
+// Toast notification
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.animation = 'slideIn 0.3s ease reverse';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', init);

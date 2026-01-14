@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920">
+  <title>Building ImpressFlow with AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Reset */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* impress.js required styles */
+    .impress-not-supported .step { position: relative; margin: 20px auto; }
+    .impress-enabled .step { position: absolute; }
+    .impress-enabled .step.active { pointer-events: auto; }
+
+    /* Theme */
+    
+/* Theme: Tech Dark */
+:root {
+  --background: #0a0a0f;
+  --background-gradient: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%);
+  --text: #e0e0e0;
+  --text-muted: #888888;
+  --heading: #ffffff;
+  --accent: #00d4ff;
+  --accent-secondary: #ff00aa;
+  --code-bg: #1a1a2e;
+  --code-text: #00ff88;
+  --blockquote-bg: rgba(0, 212, 255, 0.1);
+  --blockquote-border: #00d4ff;
+
+  --font-heading: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-body: 'Inter', 'Segoe UI', sans-serif;
+  --font-code: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --h1-size: 72px;
+  --h2-size: 48px;
+  --body-size: 32px;
+  --small-size: 24px;
+  --code-size: 28px;
+
+  --slide-padding: 80px;
+  --element-gap: 40px;
+  --column-gap: 60px;
+
+  --border-radius: 8px;
+  --slide-shadow: 0 0 60px rgba(0, 212, 255, 0.3);
+  --text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+}
+
+body {
+  background: var(--background-gradient);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--body-size);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+  color: var(--heading);
+  text-shadow: var(--text-shadow);
+}
+h1 { font-size: var(--h1-size); }
+h2 { font-size: var(--h2-size); }
+
+.step.slide {
+  padding: var(--slide-padding);
+  border-radius: var(--border-radius);
+  box-shadow: var(--slide-shadow);
+}
+
+code, pre {
+  font-family: var(--font-code);
+  font-size: var(--code-size);
+  background: var(--code-bg);
+  color: var(--code-text);
+}
+
+blockquote {
+  background: var(--blockquote-bg);
+  border-left: 4px solid var(--blockquote-border);
+  padding: 1em;
+  border-radius: var(--border-radius);
+}
+
+a { color: var(--accent); }
+.accent { color: var(--accent); }
+.muted { color: var(--text-muted); }
+
+
+    /* Layouts */
+    
+/* Single column layout */
+.layout-single .slide-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap);
+}
+
+/* Two column layout */
+.layout-two-column .content-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--column-gap);
+}
+
+/* Three column layout */
+.layout-three-column .content-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--column-gap);
+}
+
+/* Image left layout */
+.layout-image-left .content-body {
+  display: grid;
+  grid-template-columns: 40% 60%;
+  gap: var(--column-gap);
+  align-items: center;
+}
+
+/* Image right layout */
+.layout-image-right .content-body {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  gap: var(--column-gap);
+  align-items: center;
+}
+
+/* Full bleed layout */
+.layout-full-bleed {
+  padding: 0 !important;
+}
+
+.layout-full-bleed .slide-content {
+  width: 100%;
+  height: 100%;
+}
+
+.layout-full-bleed .slide-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Title only layout */
+.layout-title-only .slide-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  height: 100%;
+}
+
+.layout-title-only .slide-title {
+  font-size: calc(var(--h1-size) * 1.2);
+}
+
+/* Quote layout */
+.layout-quote .slide-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.layout-quote blockquote {
+  font-size: 150%;
+  text-align: center;
+  max-width: 80%;
+  margin: 0 auto;
+  font-style: italic;
+}
+
+.layout-quote blockquote p:last-child {
+  font-style: normal;
+  font-size: 60%;
+  margin-top: 1em;
+  color: var(--text-muted);
+}
+
+/* Slide images */
+.slide-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--border-radius);
+}
+
+/* List styling */
+.slide-content ul,
+.slide-content ol {
+  list-style-position: inside;
+  padding-left: 0;
+}
+
+.slide-content li {
+  margin-bottom: 0.5em;
+}
+
+/* Code blocks */
+.slide-content pre {
+  padding: 1em;
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+}
+
+.slide-content code {
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+.slide-content pre code {
+  padding: 0;
+  background: transparent;
+}
+
+
+    /* Slides base */
+    .step.slide {
+      width: 1920px;
+      height: 1080px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .fallback-message { display: none; }
+    .impress-not-supported .fallback-message { display: block; }
+  </style>
+</head>
+<body class="impress-not-supported">
+  <div class="fallback-message">
+    <p>Your browser doesn't support impress.js features.</p>
+  </div>
+
+  <div id="impress"
+       data-transition-duration="1000"
+       data-width="1920"
+       data-height="1080"
+       data-max-scale="3"
+       data-min-scale="0"
+       data-perspective="1000">
+
+    
+    <div id="slide-1"
+         class="step slide layout-single"
+         data-x="1000"
+         data-y="0"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="0"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">Building ImpressFlow with AI</h1>
+        <div class="content-body">
+          <h1>Building ImpressFlow with AI</h1>
+<p>From PRD to Production in One Session</p>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-2"
+         class="step slide layout-single"
+         data-x="919.2388155425118"
+         data-y="919.2388155425117"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="45"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">The Vision</h1>
+        <div class="content-body">
+          <h1>The Vision</h1>
+<p><strong>Problem:</strong> Creating impress.js presentations requires manual HTML/CSS work</p>
+<p><strong>Solution:</strong> ImpressFlow - Convert Markdown to 3D Presentations</p>
+<p>Started with a late-night conversation with Claude to draft the PRD</p>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-3"
+         class="step slide layout-single"
+         data-x="9.797174393178826e-14"
+         data-y="1600"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="90"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">The PRD Discussion</h1>
+        <div class="content-body">
+          <h1>The PRD Discussion</h1>
+<p>Collaborative design session with Claude:</p>
+<ul>
+<li>Defined core features and architecture</li>
+<li>Mapped out 11 development phases</li>
+<li>Created AGENTS.md specification</li>
+<li>Established verification criteria</li>
+</ul>
+<p><em>&quot;What if we could build the whole thing autonomously?&quot;</em></p>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-4"
+         class="step slide layout-single"
+         data-x="-1343.5028842544402"
+         data-y="1343.5028842544405"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="135"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">Enter Ralph Loops</h1>
+        <div class="content-body">
+          <h1>Enter Ralph Loops</h1>
+<p><strong>Ralph Loop</strong> - Autonomous agent execution mode</p>
+<pre><code>/ralph-loop Read /workspace/AGENTS.md and execute
+the agent to build ImpressFlow --max-iterations 10
+</code></pre>
+<p>One command to build an entire application</p>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-5"
+         class="step slide layout-single"
+         data-x="-2200"
+         data-y="2.6942229581241773e-13"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="180"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">The Architecture</h1>
+        <div class="content-body">
+          <h1>The Architecture</h1>
+<pre><code>src/
+├── core/           # Pure functions, NO I/O
+│   ├── parser/     # Markdown → SlideAST
+│   ├── positioning/# 6 spatial algorithms
+│   ├── themes/     # 5 themes
+│   └── renderer/   # SlideAST → HTML
+
+├── adapters/       # I/O boundaries
+│   ├── input/      # File, Notion
+│   ├── storage/    # Local, Supabase
+│   └── images/     # Gemini AI
+</code></pre>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-6"
+         class="step slide layout-single"
+         data-x="-1767.7669529663692"
+         data-y="-1767.7669529663688"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="225"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">11 Phases, One Session</h1>
+        <div class="content-body">
+          <h1>11 Phases, One Session</h1>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Component</th>
+<th>Tests</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0-1</td>
+<td>Scaffolding + Parser</td>
+<td>15</td>
+</tr>
+<tr>
+<td>2-3</td>
+<td>Positioning + Themes</td>
+<td>37</td>
+</tr>
+<tr>
+<td>4-5</td>
+<td>Renderer + CLI</td>
+<td>23</td>
+</tr>
+<tr>
+<td>6-7</td>
+<td>Notion + Images</td>
+<td>31</td>
+</tr>
+<tr>
+<td>8-10</td>
+<td>E2E + Supabase + Web</td>
+<td>50</td>
+</tr>
+</tbody></table>
+<p><strong>Total: 156 tests passing</strong></p>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-7"
+         class="step slide layout-single"
+         data-x="-5.143516556418883e-13"
+         data-y="-2800"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="270"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">The Magic: Autonomous Development</h1>
+        <div class="content-body">
+          <h1>The Magic: Autonomous Development</h1>
+<p>Each phase followed the same pattern:</p>
+<ol>
+<li>Read phase specification</li>
+<li>Implement features</li>
+<li>Write comprehensive tests</li>
+<li>Run verification: <code>npm run typecheck &amp;&amp; npm run test &amp;&amp; npm run build</code></li>
+<li>Output completion promise</li>
+<li>Move to next phase</li>
+</ol>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-8"
+         class="step slide layout-single"
+         data-x="2192.031021678297"
+         data-y="-2192.0310216782977"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="315"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">What We Built</h1>
+        <div class="content-body">
+          <h1>What We Built</h1>
+<ul>
+<li><strong>CLI Tool</strong> - <code>impressflow input.md -o ./output</code></li>
+<li><strong>6 Layouts</strong> - Spiral, Grid, Herringbone, Zoom, Sphere, Cascade</li>
+<li><strong>5 Themes</strong> - Tech Dark, Clean Light, Creative, Corporate, Workshop</li>
+<li><strong>Notion Integration</strong> - Public pages and API access</li>
+<li><strong>AI Images</strong> - Gemini-powered generation with caching</li>
+<li><strong>Web App</strong> - Interactive browser-based editor</li>
+</ul>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-9"
+         class="step slide layout-single"
+         data-x="3400"
+         data-y="-8.327598234202002e-13"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="0"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">Key Takeaways</h1>
+        <div class="content-body">
+          <h1>Key Takeaways</h1>
+<ol>
+<li><strong>PRD Quality Matters</strong> - Clear specs enable autonomous execution</li>
+<li><strong>Phase-Based Development</strong> - Small, verifiable increments</li>
+<li><strong>Test-Driven</strong> - Every phase has verification criteria</li>
+<li><strong>Human + AI Collaboration</strong> - Design together, execute autonomously</li>
+</ol>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-10"
+         class="step slide layout-single"
+         data-x="2616.2950903902265"
+         data-y="2616.295090390225"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="45"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">Try It Yourself</h1>
+        <div class="content-body">
+          <h1>Try It Yourself</h1>
+<pre><code class="language-bash">
+</code></pre>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-11"
+         class="step slide layout-single"
+         data-x="1.2246467991473533e-12"
+         data-y="4000"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="90"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">Generate this presentation</h1>
+        <div class="content-body">
+          <h1>Generate this presentation</h1>
+<p>impressflow building-impressflow.md -o ./output</p>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-12"
+         class="step slide layout-single"
+         data-x="-3040.559159102156"
+         data-y="3040.5591591021525"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="135"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">Or use the web app</h1>
+        <div class="content-body">
+          <h1>Or use the web app</h1>
+<p>npm run web</p>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="slide-13"
+         class="step slide layout-single"
+         data-x="-4600"
+         data-y="1.6900125828233473e-12"
+         data-z="0"
+         data-rotate-x="0"
+         data-rotate-y="0"
+         data-rotate-z="180"
+         data-scale="1">
+      <div class="slide-content">
+        <h1 class="slide-title">Open http://localhost:3000</h1>
+        <div class="content-body">
+          <h1>Open <a href="http://localhost:3000">http://localhost:3000</a></h1>
+<pre><code>
+**The future of software development is collaborative**
+
+*Built with Claude Code + Ralph Loops*
+</code></pre>
+        </div>
+      </div>
+      
+    </div>
+  
+
+    <div id="overview" class="step"
+         data-x="-217.25108220860997"
+         data-y="519.9844595880512"
+         data-scale="10">
+    </div>
+  </div>
+
+  
+
+  <script>
+    
+/**
+ * impress.js
+ *
+ * Copyright 2011-2024 Bartek Szopka (@bartaz)
+ * Released under the MIT license.
+ */
+(function(document, window) {
+  'use strict';
+
+  var pfx = (function() {
+    var style = document.createElement('dummy').style,
+        prefixes = 'Webkit Moz O ms Khtml'.split(' '),
+        memory = {};
+    return function(prop) {
+      if (typeof memory[prop] === 'undefined') {
+        var ucProp = prop.charAt(0).toUpperCase() + prop.substr(1),
+            props = (prop + ' ' + prefixes.join(ucProp + ' ') + ucProp).split(' ');
+        memory[prop] = null;
+        for (var i in props) {
+          if (style[props[i]] !== undefined) {
+            memory[prop] = props[i];
+            break;
+          }
+        }
+      }
+      return memory[prop];
+    };
+  })();
+
+  var body = document.body;
+  var impressSupported = (pfx('perspective') !== null) && (body.classList) && (body.dataset);
+
+  var roots = {};
+  var defaults = {
+    width: 1024,
+    height: 768,
+    maxScale: 1,
+    minScale: 0,
+    perspective: 1000,
+    transitionDuration: 1000
+  };
+
+  var empty = function() { return false; };
+
+  var impress = window.impress = function(rootId) {
+    rootId = rootId || 'impress';
+
+    if (roots['impress-root-' + rootId]) {
+      return roots['impress-root-' + rootId];
+    }
+
+    var stepsData = {};
+    var activeStep = null;
+    var currentState = null;
+    var steps = null;
+    var config = null;
+    var windowScale = null;
+    var root = document.getElementById(rootId);
+    var canvas = document.createElement('div');
+    var initialized = false;
+    var lastEntered = null;
+
+    var computeWindowScale = function(config) {
+      var hScale = window.innerHeight / config.height,
+          wScale = window.innerWidth / config.width,
+          scale = hScale > wScale ? wScale : hScale;
+      if (config.maxScale && scale > config.maxScale) {
+        scale = config.maxScale;
+      }
+      if (config.minScale && scale < config.minScale) {
+        scale = config.minScale;
+      }
+      return scale;
+    };
+
+    var css = function(el, props) {
+      var key, pkey;
+      for (key in props) {
+        if (props.hasOwnProperty(key)) {
+          pkey = pfx(key);
+          if (pkey !== null) {
+            el.style[pkey] = props[key];
+          }
+        }
+      }
+      return el;
+    };
+
+    var translate = function(t) {
+      return ' translate3d(' + t.x + 'px,' + t.y + 'px,' + t.z + 'px) ';
+    };
+
+    var rotate = function(r) {
+      var rX = ' rotateX(' + r.x + 'deg) ',
+          rY = ' rotateY(' + r.y + 'deg) ',
+          rZ = ' rotateZ(' + r.z + 'deg) ';
+      return rX + rY + rZ;
+    };
+
+    var scale = function(s) {
+      return ' scale(' + s + ') ';
+    };
+
+    var perspective = function(p) {
+      return ' perspective(' + p + 'px) ';
+    };
+
+    var getElementFromHash = function() {
+      return document.getElementById(window.location.hash.replace(/^#\/?/, ''));
+    };
+
+    var triggerEvent = function(el, eventName, detail) {
+      var event = document.createEvent('CustomEvent');
+      event.initCustomEvent(eventName, true, true, detail);
+      el.dispatchEvent(event);
+    };
+
+    var initStep = function(el, idx) {
+      var data = el.dataset,
+          step = {
+            translate: {
+              x: Number(data.x) || 0,
+              y: Number(data.y) || 0,
+              z: Number(data.z) || 0
+            },
+            rotate: {
+              x: Number(data.rotateX) || 0,
+              y: Number(data.rotateY) || 0,
+              z: Number(data.rotateZ) || Number(data.rotate) || 0
+            },
+            scale: Number(data.scale) || 1,
+            el: el
+          };
+
+      if (!el.id) {
+        el.id = 'step-' + (idx + 1);
+      }
+
+      stepsData['impress-' + el.id] = step;
+
+      css(el, {
+        position: 'absolute',
+        transform: 'translate(-50%,-50%)' +
+                  translate(step.translate) +
+                  rotate(step.rotate) +
+                  scale(step.scale),
+        transformStyle: 'preserve-3d'
+      });
+    };
+
+    var init = function() {
+      if (initialized) { return; }
+
+      body.classList.remove('impress-not-supported');
+      body.classList.add('impress-supported');
+
+      root.style.position = 'absolute';
+      root.style.overflow = 'hidden';
+      root.style.left = '50%';
+      root.style.top = '50%';
+
+      config = {
+        width: Number(root.dataset.width) || defaults.width,
+        height: Number(root.dataset.height) || defaults.height,
+        maxScale: Number(root.dataset.maxScale) || defaults.maxScale,
+        minScale: Number(root.dataset.minScale) || defaults.minScale,
+        perspective: Number(root.dataset.perspective) || defaults.perspective,
+        transitionDuration: Number(root.dataset.transitionDuration) || defaults.transitionDuration
+      };
+
+      windowScale = computeWindowScale(config);
+
+      css(root, {
+        transform: perspective(config.perspective / windowScale) + scale(windowScale),
+        transformStyle: 'preserve-3d',
+        transformOrigin: '0 0'
+      });
+
+      canvas.id = 'impress-canvas';
+      while (root.firstChild) {
+        canvas.appendChild(root.firstChild);
+      }
+      root.appendChild(canvas);
+
+      css(canvas, {
+        position: 'absolute',
+        transformOrigin: '0 0',
+        transformStyle: 'preserve-3d',
+        transition: 'all ' + (config.transitionDuration / 1000) + 's ease-in-out'
+      });
+
+      steps = canvas.querySelectorAll('.step');
+      steps.forEach(initStep);
+
+      currentState = {
+        translate: { x: 0, y: 0, z: 0 },
+        rotate: { x: 0, y: 0, z: 0 },
+        scale: 1
+      };
+
+      initialized = true;
+
+      triggerEvent(root, 'impress:init', { api: roots['impress-root-' + rootId] });
+    };
+
+    var getStep = function(step) {
+      if (typeof step === 'number') {
+        step = step < 0 ? steps[steps.length + step] : steps[step];
+      } else if (typeof step === 'string') {
+        step = document.getElementById(step);
+      }
+      return (step && step.id && stepsData['impress-' + step.id]) ? step : null;
+    };
+
+    var goto = function(el) {
+      if (!initialized || !(el = getStep(el))) {
+        return false;
+      }
+
+      if (activeStep) {
+        activeStep.classList.remove('active');
+        body.classList.remove('impress-on-' + activeStep.id);
+      }
+
+      el.classList.add('active');
+      body.classList.add('impress-on-' + el.id);
+
+      var step = stepsData['impress-' + el.id];
+      currentState = {
+        translate: {
+          x: -step.translate.x,
+          y: -step.translate.y,
+          z: -step.translate.z
+        },
+        rotate: {
+          x: -step.rotate.x,
+          y: -step.rotate.y,
+          z: -step.rotate.z
+        },
+        scale: 1 / step.scale
+      };
+
+      windowScale = computeWindowScale(config);
+
+      css(root, {
+        transform: perspective(config.perspective / windowScale) + scale(windowScale * currentState.scale),
+        transitionDuration: config.transitionDuration + 'ms'
+      });
+
+      css(canvas, {
+        transform: rotate(currentState.rotate) + translate(currentState.translate),
+        transitionDuration: config.transitionDuration + 'ms'
+      });
+
+      if (activeStep !== el) {
+        if (lastEntered) {
+          triggerEvent(lastEntered, 'impress:stepleave', {});
+        }
+        triggerEvent(el, 'impress:stepenter', {});
+        lastEntered = el;
+      }
+
+      activeStep = el;
+      window.location.hash = '#/' + el.id;
+
+      return el;
+    };
+
+    var prev = function() {
+      var prev = steps.indexOf(activeStep) - 1;
+      prev = prev >= 0 ? steps[prev] : steps[steps.length - 1];
+      return goto(prev);
+    };
+
+    var next = function() {
+      var next = steps.indexOf(activeStep) + 1;
+      next = next < steps.length ? steps[next] : steps[0];
+      return goto(next);
+    };
+
+    if (!impressSupported) {
+      body.classList.add('impress-not-supported');
+      return;
+    }
+
+    root.addEventListener('impress:init', function() {
+      steps = Array.from(steps);
+      var target = getElementFromHash() || steps[0];
+      goto(target);
+    }, false);
+
+    window.addEventListener('hashchange', function() {
+      var target = getElementFromHash();
+      if (target && target !== activeStep) {
+        goto(target);
+      }
+    }, false);
+
+    window.addEventListener('resize', function() {
+      windowScale = computeWindowScale(config);
+      css(root, {
+        transform: perspective(config.perspective / windowScale) + scale(windowScale * currentState.scale)
+      });
+    }, false);
+
+    document.addEventListener('keydown', function(e) {
+      if (e.keyCode === 9 || (e.keyCode >= 32 && e.keyCode <= 40)) {
+        switch (e.keyCode) {
+          case 33: // pg up
+          case 37: // left
+          case 38: // up
+            prev();
+            break;
+          case 9:  // tab
+          case 32: // space
+          case 34: // pg down
+          case 39: // right
+          case 40: // down
+            next();
+            break;
+        }
+        e.preventDefault();
+      }
+    }, false);
+
+    document.addEventListener('click', function(e) {
+      var target = e.target;
+      while (target && target !== document.documentElement) {
+        if (target.classList.contains('step')) {
+          if (target !== activeStep) {
+            goto(target);
+          }
+          break;
+        }
+        target = target.parentNode;
+      }
+    }, false);
+
+    roots['impress-root-' + rootId] = {
+      init: init,
+      goto: goto,
+      next: next,
+      prev: prev
+    };
+
+    return roots['impress-root-' + rootId];
+  };
+
+})(document, window);
+
+  </script>
+  <script>impress().init();</script>
+</body>
+</html>

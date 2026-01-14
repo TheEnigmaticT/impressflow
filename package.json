@@ -1,0 +1,48 @@
+{
+  "name": "impressflow",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "impressflow": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test tests/e2e/",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "web": "node web/server.js",
+    "web:dev": "node web/server.js 3000"
+  },
+  "keywords": [
+    "impress.js",
+    "presentation",
+    "markdown",
+    "notion",
+    "slides"
+  ],
+  "author": "",
+  "license": "MIT",
+  "description": "Convert Markdown/Notion to impress.js 3D presentations",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@notionhq/client": "^5.6.0",
+    "@supabase/supabase-js": "^2.90.1",
+    "commander": "^14.0.2",
+    "gray-matter": "^4.0.3",
+    "handlebars": "^4.7.8",
+    "marked": "^17.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^25.0.8",
+    "jsdom": "^27.4.0",
+    "playwright": "^1.57.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
+  }
+}
