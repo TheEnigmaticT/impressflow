@@ -484,6 +484,10 @@ function getImageStyleForTheme(theme) {
     'workshop': {
       style: 'Hand-drawn watercolor illustration style. Sketchy, artistic, looks hand-crafted. Pen and ink aesthetic with watercolor washes. Whiteboard or notebook sketch feel.',
       colors: 'Green (#22c55e) as primary color, purple (#a855f7) secondary, yellow (#eab308) accents. Dark charcoal (#18181b) background with illustrations appearing on light paper or whiteboard areas.'
+    },
+    'crowd-tamers': {
+      style: 'Clean modern professional illustration style. Flat design with friendly approachable aesthetic. Startup vibes, minimal and polished. Simple shapes with soft gradients.',
+      colors: 'Green (#61cf70) as primary accent, cyan/blue (#1fc2f9) secondary. Dark navy (#1A202C) for contrast elements. Light backgrounds (#F7FAFC, #ffffff). Professional yet warm feel.'
     }
   };
 
@@ -859,6 +863,14 @@ function getThemeCSS(theme) {
       '--secondary': '#a855f7',
       '--accent': '#eab308',
       '--muted': '#a1a1aa',
+    },
+    'crowd-tamers': {
+      '--background': '#F7FAFC',
+      '--foreground': '#1A202C',
+      '--primary': '#61cf70',
+      '--secondary': '#1fc2f9',
+      '--accent': '#61cf70',
+      '--muted': '#718096',
     },
   };
 

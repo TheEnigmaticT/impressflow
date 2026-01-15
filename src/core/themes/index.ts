@@ -4,6 +4,7 @@ import { cleanLight } from './clean-light.js';
 import { creative } from './creative.js';
 import { corporate } from './corporate.js';
 import { workshop } from './workshop.js';
+import { crowdTamers } from './crowd-tamers.js';
 
 const themes: Record<string, Theme> = {
   'tech-dark': techDark,
@@ -11,6 +12,7 @@ const themes: Record<string, Theme> = {
   creative: creative,
   corporate: corporate,
   workshop: workshop,
+  'crowd-tamers': crowdTamers,
 };
 
 /**
@@ -139,3 +141,4 @@ export { cleanLight } from './clean-light.js';
 export { creative } from './creative.js';
 export { corporate } from './corporate.js';
 export { workshop } from './workshop.js';
+export { crowdTamers } from './crowd-tamers.js';
