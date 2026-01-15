@@ -89,6 +89,41 @@ async function fetchNotionPage(pageId) {
 }
 
 /**
+ * Extract rich text from Notion properties, preserving formatting
+ */
+function extractRichText(titleArray) {
+  if (!titleArray) return '';
+
+  return titleArray.map(segment => {
+    const text = segment[0] || '';
+    const formats = segment[1] || [];
+
+    let result = text;
+
+    // Apply formatting
+    for (const format of formats) {
+      const formatType = format[0];
+      switch (formatType) {
+        case 'b': // bold
+          result = `**${result}**`;
+          break;
+        case 'i': // italic
+          result = `*${result}*`;
+          break;
+        case 'c': // code
+          result = `\`${result}\``;
+          break;
+        case 'a': // link
+          result = `[${result}](${format[1]})`;
+          break;
+      }
+    }
+
+    return result;
+  }).join('');
+}
+
+/**
  * Convert Notion API blocks to markdown
  */
 function notionBlocksToMarkdown(blocks) {
@@ -99,7 +134,7 @@ function notionBlocksToMarkdown(blocks) {
     if (!block || !block.value) continue;
 
     const { type, properties } = block.value;
-    const text = properties?.title?.map(t => t[0]).join('') || '';
+    const text = extractRichText(properties?.title) || '';
 
     switch (type) {
       case 'page':
@@ -118,7 +153,12 @@ function notionBlocksToMarkdown(blocks) {
         break;
 
       case 'sub_header':
-        lines.push(`## ${text}\n`);
+        // Check if this is a direction marker (^)
+        if (text.trim() === '^') {
+          lines.push(`^\n`);
+        } else {
+          lines.push(`## ${text}\n`);
+        }
         break;
 
       case 'sub_sub_header':
@@ -126,7 +166,11 @@ function notionBlocksToMarkdown(blocks) {
         break;
 
       case 'text':
-        if (text) lines.push(`${text}\n`);
+        if (text) {
+          // Escape leading > to prevent markdown blockquotes
+          const escapedText = text.startsWith('>') ? '\\' + text : text;
+          lines.push(`${escapedText}\n`);
+        }
         break;
 
       case 'bulleted_list':
@@ -165,6 +209,21 @@ function notionBlocksToMarkdown(blocks) {
     }
   }
 
+  // Clean up the content
+  let content = lines.join('\n');
+
+  // Remove duplicate dividers (handles ---\n\n---\n patterns)
+  content = content.replace(/---\n+---/g, '---');
+
+  // Remove dividers at the very start
+  content = content.replace(/^\n*---\n/, '');
+
+  // Clean up excessive newlines
+  content = content.replace(/\n{3,}/g, '\n\n');
+
+  // Remove any frontmatter-like blocks that got included in content
+  content = content.replace(/## title:.*\ntheme:.*\nlayout:.*\n/gi, '');
+
   // Add frontmatter
   const markdown = `---
 title: Notion Import
@@ -172,7 +231,7 @@ theme: tech-dark
 layout: line
 ---
 
-${lines.join('\n')}`;
+${content.trim()}`;
 
   return markdown;
 }
