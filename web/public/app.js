@@ -497,6 +497,20 @@ function init() {
   // Set sample markdown
   markdownInput.value = sampleMarkdown;
 
+  // Sync dropdowns with frontmatter from sample
+  const fmMatch = sampleMarkdown.match(/^---\n([\s\S]*?)\n---/);
+  if (fmMatch) {
+    const fmLines = fmMatch[1].split('\n');
+    for (const line of fmLines) {
+      const [key, ...valueParts] = line.split(':');
+      if (key && valueParts.length) {
+        const value = valueParts.join(':').trim();
+        if (key.trim() === 'theme') themeSelect.value = value;
+        if (key.trim() === 'layout') layoutSelect.value = value;
+      }
+    }
+  }
+
   // Tab switching
   markdownTab.addEventListener('click', () => switchTab('markdown'));
   notionTab.addEventListener('click', () => switchTab('notion'));
