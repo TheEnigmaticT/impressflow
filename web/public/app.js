@@ -569,6 +569,18 @@ function switchTab(tab) {
   notionTabContent.classList.toggle('active', tab === 'notion');
 }
 
+// Fetch markdown from Notion URL via server API
+async function fetchNotionMarkdown(url) {
+  const response = await fetch(`/api/notion?url=${encodeURIComponent(url)}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch Notion page');
+  }
+
+  return data.markdown;
+}
+
 // Generate presentation
 async function handleGenerate() {
   const theme = themeSelect.value;
@@ -588,7 +600,7 @@ async function handleGenerate() {
     }
   } else {
     source = notionUrl.value.trim();
-    sourceType = source.includes('notion.site') ? 'notion-public' : 'notion-api';
+    sourceType = 'notion';
 
     if (!source) {
       showToast('Please enter a Notion URL', 'error');
@@ -606,9 +618,18 @@ async function handleGenerate() {
   setLoading(true);
 
   try {
+    let markdown = source;
+
+    // Fetch Notion content if needed
+    if (sourceType === 'notion') {
+      showToast('Fetching Notion page...', 'info');
+      markdown = await fetchNotionMarkdown(source);
+      console.log('Fetched Notion markdown:', markdown.substring(0, 200) + '...');
+    }
+
     // Generate HTML (async for image generation)
     console.log('Generating presentation...');
-    generatedHtml = await generatePresentation(source, theme, layout, apiKey, generateImages);
+    generatedHtml = await generatePresentation(markdown, theme, layout, apiKey, generateImages);
     console.log('Generated HTML length:', generatedHtml.length);
 
     // Update preview
