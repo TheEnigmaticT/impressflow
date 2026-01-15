@@ -232,7 +232,7 @@ const IMPRESS_JS = `(function(document, window) {
 const sampleMarkdown = `---
 title: Welcome to ImpressFlow
 theme: tech-dark
-layout: spiral
+layout: line
 ---
 
 # ImpressFlow
@@ -253,7 +253,7 @@ Most presentation tools are >>>boring<<<, >>>flat<<<, and >>>forgettable<<<.
 
 Your audience deserves better.
 
----
+^
 
 # The Solution
 
@@ -271,26 +271,21 @@ Write in Markdown. >>>Present in 3D.<<<
 
 ::: two-column
 +++
-### Write This
+### Left Column
 
-\`\`\`markdown
-::: two-column
-+++
-Content on the left
-+++
-Content on the right
-:::
-\`\`\`
+Use the \`+++ separator\` to split content between columns.
+
+Perfect for comparisons!
 
 +++
-### Get This
+### Right Column
 
-Professional side-by-side layouts for comparisons, features, or image + text combinations.
+Professional side-by-side layouts for features, pros/cons, or image + text.
 
 *No CSS required.*
 :::
 
----
+^
 
 # Three-Column Layouts
 
@@ -339,7 +334,7 @@ Or let AI create visuals from your descriptions:
 
 *Enable AI Images and add your Gemini API key*
 
----
+^
 
 # Animation: Appear
 
@@ -379,7 +374,7 @@ Ideas >>>enter the stage<<< from >>>off-screen<<< bringing >>>dynamic energy<<<.
 
 Use for introductions and new concepts.
 
----
+^
 
 # Animation: Highlight
 
@@ -423,7 +418,7 @@ Add >>>attitude<<< and >>>edge<<< to your message.
 
 Great for bold statements and disruptive ideas.
 
----
+^
 
 # 6 Professional Themes
 
@@ -443,23 +438,24 @@ Great for bold statements and disruptive ideas.
 
 ---
 
-# 6 Spatial Layouts
+# 7 Spatial Layouts
 
 ::: two-column
 +++
 ### Classic
-1. **Spiral** - Flowing journey
-2. **Grid** - Organized matrix
-3. **Cascade** - Waterfall effect
+1. **Line** - Snake pattern (this demo!)
+2. **Spiral** - Flowing journey
+3. **Grid** - Organized matrix
 
 +++
 ### Dynamic
 4. **Herringbone** - Zigzag energy
 5. **Zoom** - Depth navigation
 6. **Sphere** - 3D orbital
+7. **Cascade** - Waterfall effect
 :::
 
----
+^
 
 # Get Started
 
@@ -624,13 +620,13 @@ async function generatePresentation(markdown, theme, layout, apiKey, generateIma
   const processedMarkdown = await processImagesInMarkdown(markdown, apiKey, generateImages, finalTheme);
 
   // Parse markdown
-  const { frontmatter, slides } = parseMarkdown(processedMarkdown);
+  const { frontmatter, slides, directions } = parseMarkdown(processedMarkdown);
 
   // Use frontmatter values as defaults for layout
-  const finalLayout = layout || frontmatter.layout || 'spiral';
+  const finalLayout = layout || frontmatter.layout || 'line';
 
-  // Calculate positions
-  const positions = calculatePositions(slides.length, finalLayout);
+  // Calculate positions (pass directions for line layout)
+  const positions = calculatePositions(slides.length, finalLayout, directions);
 
   // Generate slides HTML
   const slidesHtml = slides.map((slide, i) => {
@@ -670,6 +666,15 @@ async function generatePresentation(markdown, theme, layout, apiKey, generateIma
     ${slidesHtml}
     <div id="overview" class="step" data-x="0" data-y="0" data-scale="10"></div>
   </div>
+
+  <!-- Navigation hover zones -->
+  <div id="nav-prev" class="nav-zone nav-prev" onclick="impress().prev()">
+    <div class="nav-icon">&lt;</div>
+  </div>
+  <div id="nav-next" class="nav-zone nav-next" onclick="impress().next()">
+    <div class="nav-icon">&gt;</div>
+  </div>
+
   <script>${IMPRESS_JS}<\/script>
   <script>impress().init();<\/script>
 </body>
@@ -697,7 +702,29 @@ function parseMarkdown(content) {
   // Split into slides
   const slideTexts = body.split(/\n---\n/).filter(s => s.trim());
 
-  const slides = slideTexts.map((text, index) => {
+  // Extract direction markers (^ at end of slide means next goes down)
+  const directions = [];
+  const cleanedSlideTexts = slideTexts.map(text => {
+    const trimmed = text.trim();
+    // Check if slide ends with ^ on its own line
+    const lines = trimmed.split('\n');
+    let lastContentLine = lines.length - 1;
+    while (lastContentLine >= 0 && lines[lastContentLine].trim() === '') {
+      lastContentLine--;
+    }
+
+    if (lastContentLine >= 0 && lines[lastContentLine].trim() === '^') {
+      // Remove the marker and record direction as 'down'
+      lines.splice(lastContentLine, 1);
+      directions.push('down');
+      return lines.join('\n').trim();
+    }
+
+    directions.push('right');
+    return trimmed;
+  });
+
+  const slides = cleanedSlideTexts.map((text, index) => {
     // Convert markdown to HTML
     const html = markdownToHtml(text.trim());
     const titleMatch = text.match(/^#\s+(.+)$/m);
@@ -709,7 +736,7 @@ function parseMarkdown(content) {
     };
   });
 
-  return { frontmatter, slides };
+  return { frontmatter, slides, directions };
 }
 
 // Extract image generation requests from markdown
@@ -1003,8 +1030,13 @@ function markdownToHtml(md) {
 }
 
 // Calculate slide positions
-function calculatePositions(count, layout) {
+function calculatePositions(count, layout, directions = []) {
   const positions = [];
+
+  // Handle line layout separately (needs directions array)
+  if (layout === 'line') {
+    return calculateLinePositions(count, directions);
+  }
 
   for (let i = 0; i < count; i++) {
     let pos;
@@ -1131,6 +1163,42 @@ function calculatePositions(count, layout) {
     }
 
     positions.push(pos);
+  }
+
+  return positions;
+}
+
+// Calculate positions for line layout with direction support
+function calculateLinePositions(count, directions = []) {
+  const stepX = 1500;
+  const stepY = 1000;
+  const positions = [];
+
+  let x = 0;
+  let y = 0;
+  let horizontalDir = 1; // 1 = right, -1 = left
+
+  for (let i = 0; i < count; i++) {
+    // Record current position
+    positions.push({
+      x,
+      y,
+      z: 0,
+      rotateX: 0,
+      rotateY: 0,
+      rotateZ: 0,
+      scale: 1,
+    });
+
+    // Determine next move based on direction marker
+    if (directions[i] === 'down') {
+      // Move down and reverse horizontal direction
+      y += stepY;
+      horizontalDir = horizontalDir === 1 ? -1 : 1;
+    } else {
+      // Move horizontally
+      x += stepX * horizontalDir;
+    }
   }
 
   return positions;
@@ -1504,6 +1572,7 @@ function getBaseCSS() {
     .substep-slideup {
       opacity: 0;
       transform: translateY(30px);
+      display: inline-block;
     }
     .substep-slideup.substep-active {
       opacity: 1;
@@ -1514,6 +1583,7 @@ function getBaseCSS() {
     .substep-slideleft {
       opacity: 0;
       transform: translateX(50px);
+      display: inline-block;
     }
     .substep-slideleft.substep-active {
       opacity: 1;
@@ -1524,6 +1594,7 @@ function getBaseCSS() {
     .substep-skew {
       opacity: 0;
       transform: skewX(0deg);
+      display: inline-block;
     }
     .substep-skew.substep-active {
       opacity: 1;
@@ -1548,7 +1619,7 @@ function getBaseCSS() {
       }
     }
 
-    /* ---- BIG: Scales up to 1.3x ---- */
+    /* ---- BIG: Scales up to 1.3x and bolds ---- */
     .substep-big {
       opacity: 0;
       transform: scale(1);
@@ -1558,6 +1629,7 @@ function getBaseCSS() {
       opacity: 1;
       transform: scale(1.3);
       transform-origin: center center;
+      font-weight: bold;
     }
 
     /* ---- HIGHLIGHT: Animated background highlight ---- */
@@ -1587,6 +1659,68 @@ function getBaseCSS() {
     .substep-highlight.substep-active {
       color: var(--background);
       transition: color 0.3s ease-out 0.2s;
+    }
+
+    /* ========================================
+       NAVIGATION HOVER ZONES
+       ======================================== */
+
+    .nav-zone {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 8%;
+      z-index: 9999;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .nav-zone:hover {
+      opacity: 1;
+    }
+
+    .nav-prev {
+      left: 0;
+      background: linear-gradient(to right, rgba(0,0,0,0.3), transparent);
+    }
+
+    .nav-next {
+      right: 0;
+      background: linear-gradient(to left, rgba(0,0,0,0.3), transparent);
+    }
+
+    .nav-icon {
+      width: 60px;
+      height: 60px;
+      background: rgba(255,255,255,0.2);
+      border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: bold;
+      color: white;
+      backdrop-filter: blur(4px);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .nav-zone:hover .nav-icon {
+      transform: scale(1.1);
+      background: rgba(255,255,255,0.3);
+    }
+
+    .nav-zone:active .nav-icon {
+      transform: scale(0.95);
+    }
+
+    /* Hide navigation in overview */
+    .impress-on-overview .nav-zone {
+      display: none;
     }
   `;
 }

@@ -37,10 +37,17 @@ export interface CascadeConfig {
   rotation?: number; // Default: 5
 }
 
+export interface LineConfig {
+  stepX?: number;                        // Default: 2200
+  stepY?: number;                        // Default: 1400
+  directions?: Array<'right' | 'down'>;  // Direction after each slide
+}
+
 export type PositionConfig =
   | SpiralConfig
   | GridConfig
   | HerringboneConfig
   | ZoomConfig
   | SphereConfig
-  | CascadeConfig;
+  | CascadeConfig
+  | LineConfig;

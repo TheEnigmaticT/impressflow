@@ -1,12 +1,19 @@
 import { marked } from 'marked';
 import type { SlideAST, Frontmatter, Slide, LayoutType } from '../../types.js';
 import { extractFrontmatter } from './frontmatter.js';
-import { splitIntoSlides } from './slides.js';
+import { splitIntoSlides, splitIntoSlidesWithDirections } from './slides.js';
 import { detectLayout } from './layouts.js';
 import { parseImages } from './images.js';
 
 // Supported transform types for word-level animations
 const TRANSFORM_TYPES = ['appear', 'reveal', 'slideup', 'slideleft', 'skew', 'glow', 'big', 'highlight'];
+
+/**
+ * Extended SlideAST with direction markers for line layout
+ */
+export interface SlideASTWithDirections extends SlideAST {
+  directions: Array<'right' | 'down'>;
+}
 
 /**
  * Parse markdown content into a SlideAST
@@ -25,6 +32,26 @@ export function parseMarkdown(content: string): SlideAST {
   }));
 
   return { frontmatter, slides };
+}
+
+/**
+ * Parse markdown content into a SlideAST with direction markers
+ * Use this for line layout which supports ^ markers for vertical drops
+ */
+export function parseMarkdownWithDirections(content: string): SlideASTWithDirections {
+  const { frontmatter, body } = extractFrontmatter(content);
+  const { slides: rawSlides, directions } = splitIntoSlidesWithDirections(body);
+
+  const slides: Slide[] = rawSlides.map((raw, index) => ({
+    index,
+    title: extractTitle(raw),
+    content: parseContent(raw),
+    layout: detectLayout(raw),
+    images: parseImages(raw, index),
+    notes: extractNotes(raw),
+  }));
+
+  return { frontmatter, slides, directions };
 }
 
 /**
@@ -106,6 +133,7 @@ export { TRANSFORM_TYPES };
 
 // Re-export sub-modules
 export { extractFrontmatter } from './frontmatter.js';
-export { splitIntoSlides } from './slides.js';
+export { splitIntoSlides, splitIntoSlidesWithDirections } from './slides.js';
+export type { SplitResult } from './slides.js';
 export { detectLayout, extractLayoutContent } from './layouts.js';
 export { parseImages, extractImageReferences, replaceImagePlaceholders } from './images.js';

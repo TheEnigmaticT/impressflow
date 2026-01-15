@@ -5,9 +5,10 @@ import { herringbone } from './herringbone.js';
 import { zoom } from './zoom.js';
 import { sphere } from './sphere.js';
 import { cascade } from './cascade.js';
-import type { PositionConfig } from './types.js';
+import { line, calculateLinePositions } from './line.js';
+import type { PositionConfig, LineConfig } from './types.js';
 
-export type LayoutName = 'spiral' | 'grid' | 'herringbone' | 'zoom' | 'sphere' | 'cascade';
+export type LayoutName = 'spiral' | 'grid' | 'herringbone' | 'zoom' | 'sphere' | 'cascade' | 'line';
 
 type PositionFn = (index: number, total: number, config?: PositionConfig) => Position;
 
@@ -18,6 +19,7 @@ const algorithms: Record<LayoutName, PositionFn> = {
   zoom: zoom as PositionFn,
   sphere: sphere as PositionFn,
   cascade: cascade as PositionFn,
+  line: line as PositionFn,
 };
 
 /**
@@ -64,6 +66,7 @@ export { herringbone } from './herringbone.js';
 export { zoom } from './zoom.js';
 export { sphere } from './sphere.js';
 export { cascade } from './cascade.js';
+export { line, calculateLinePositions } from './line.js';
 
 // Re-export types
 export type {
@@ -73,5 +76,6 @@ export type {
   ZoomConfig,
   SphereConfig,
   CascadeConfig,
+  LineConfig,
   PositionConfig,
 } from './types.js';
