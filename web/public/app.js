@@ -73,6 +73,7 @@ const IMPRESS_JS = `(function(document, window) {
     };
     var translate = function(t) { return ' translate3d(' + t.x + 'px,' + t.y + 'px,' + t.z + 'px) '; };
     var rotate = function(r) { return ' rotateX(' + r.x + 'deg) rotateY(' + r.y + 'deg) rotateZ(' + r.z + 'deg) '; };
+    var rotateReverse = function(r) { return ' rotateZ(' + r.z + 'deg) rotateY(' + r.y + 'deg) rotateX(' + r.x + 'deg) '; };
     var scale = function(s) { return ' scale(' + s + ') '; };
     var perspective = function(p) { return ' perspective(' + p + 'px) '; };
     var getElementFromHash = function() { var h = window.location.hash.substring(1); if (h.charAt(0) === '/') h = h.substring(1); return document.getElementById(h); };
@@ -137,7 +138,7 @@ const IMPRESS_JS = `(function(document, window) {
       };
       windowScale = computeWindowScale(config);
       var rootTransform = perspective(config.perspective / windowScale) + scale(windowScale * currentState.scale);
-      var canvasTransform = rotate(currentState.rotate) + translate(currentState.translate);
+      var canvasTransform = rotateReverse(currentState.rotate) + translate(currentState.translate);
       css(root, { transform: rootTransform, transitionDuration: config.transitionDuration + 'ms' });
       css(canvas, { transform: canvasTransform, transitionDuration: config.transitionDuration + 'ms' });
       if (activeStep !== el) {
@@ -775,6 +776,9 @@ function calculatePositions(count, layout) {
           rotateZ: 0,
           scale: 1,
         };
+
+        // Debug logging
+        console.log(`Slide ${i}: pos(${pos.x}, ${pos.y}, ${pos.z}) rot(${pos.rotateX}, ${pos.rotateY}, 0) radius=${Math.round(radius)}`);
         break;
       }
       case 'cascade': {
