@@ -254,6 +254,7 @@ Most presentation tools are >>>boring<<<, >>>flat<<<, and >>>forgettable<<<.
 Your audience deserves better.
 
 ^
+---
 
 # The Solution
 
@@ -286,6 +287,7 @@ Professional side-by-side layouts for features, pros/cons, or image + text.
 :::
 
 ^
+---
 
 # Three-Column Layouts
 
@@ -335,6 +337,7 @@ Or let AI create visuals from your descriptions:
 *Enable AI Images and add your Gemini API key*
 
 ^
+---
 
 # Animation: Appear
 
@@ -375,6 +378,7 @@ Ideas >>>enter the stage<<< from >>>off-screen<<< bringing >>>dynamic energy<<<.
 Use for introductions and new concepts.
 
 ^
+---
 
 # Animation: Highlight
 
@@ -419,6 +423,7 @@ Add >>>attitude<<< and >>>edge<<< to your message.
 Great for bold statements and disruptive ideas.
 
 ^
+---
 
 # 6 Professional Themes
 
@@ -456,6 +461,7 @@ Great for bold statements and disruptive ideas.
 :::
 
 ^
+---
 
 # Get Started
 
