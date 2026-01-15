@@ -128,5 +128,126 @@ export function generateLayoutCSS(): string {
   padding: 0;
   background: transparent;
 }
+
+/* Transform blocks for word-level animations */
+.transform-block {
+  margin: 0.5em 0;
+}
+
+/* Base substep styles - hidden by default */
+.substep {
+  opacity: 0;
+  transition: all 0.6s ease-out;
+}
+
+.substep.substep-active {
+  opacity: 1;
+}
+
+/* APPEAR: Simple fade in */
+.substep-appear {
+  opacity: 0;
+}
+
+.substep-appear.substep-active {
+  opacity: 1;
+}
+
+/* REVEAL: Mask slides off (clip-path wipe) */
+.substep-reveal {
+  opacity: 1;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.8s ease-out;
+}
+
+.substep-reveal.substep-active {
+  clip-path: inset(0 0 0 0);
+}
+
+/* SLIDEUP: Slides up from below */
+.substep-slideup {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.substep-slideup.substep-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* SLIDELEFT: Slides in from right */
+.substep-slideleft {
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+.substep-slideleft.substep-active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* SKEW: Starts normal, ends skewed */
+.substep-skew {
+  opacity: 0;
+  transform: skewX(0deg);
+  display: inline-block;
+}
+
+.substep-skew.substep-active {
+  opacity: 1;
+  transform: skewX(-8deg);
+}
+
+/* GLOW: Fade in with pulsing glow */
+.substep-glow {
+  opacity: 0;
+}
+
+.substep-glow.substep-active {
+  opacity: 1;
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent); }
+  50% { text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent), 0 0 60px var(--accent); }
+}
+
+/* BIG: Scales up to 1.3x */
+.substep-big {
+  opacity: 0;
+  transform: scale(1);
+  display: inline-block;
+  transform-origin: center center;
+}
+
+.substep-big.substep-active {
+  opacity: 1;
+  transform: scale(1.3);
+}
+
+/* HIGHLIGHT: Animated background highlight */
+.substep-highlight {
+  position: relative;
+  opacity: 1;
+}
+
+.substep-highlight::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: -2px;
+  bottom: -2px;
+  background: var(--accent-secondary, var(--accent));
+  z-index: -1;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.5s ease-out;
+}
+
+.substep-highlight.substep-active::before {
+  transform: scaleX(1);
+}
 `;
 }

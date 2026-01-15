@@ -263,6 +263,8 @@ export const IMPRESS_JS_SOURCE = `
         if (lastEntered) {
           triggerEvent(lastEntered, 'impress:stepleave', {});
         }
+        // Reset substeps when entering a new step
+        resetSubsteps(el);
         triggerEvent(el, 'impress:stepenter', {});
         lastEntered = el;
       }
@@ -273,13 +275,60 @@ export const IMPRESS_JS_SOURCE = `
       return el;
     };
 
+    // Substep support for word-level animations
+    var getSubsteps = function(step) {
+      return step ? Array.from(step.querySelectorAll('.substep')) : [];
+    };
+
+    var getActiveSubsteps = function(step) {
+      return step ? Array.from(step.querySelectorAll('.substep.substep-active')) : [];
+    };
+
+    var getInactiveSubsteps = function(step) {
+      return step ? Array.from(step.querySelectorAll('.substep:not(.substep-active)')) : [];
+    };
+
+    var activateNextSubstep = function() {
+      var inactive = getInactiveSubsteps(activeStep);
+      if (inactive.length > 0) {
+        inactive[0].classList.add('substep-active');
+        return true;
+      }
+      return false;
+    };
+
+    var deactivateLastSubstep = function() {
+      var active = getActiveSubsteps(activeStep);
+      if (active.length > 0) {
+        active[active.length - 1].classList.remove('substep-active');
+        return true;
+      }
+      return false;
+    };
+
+    var resetSubsteps = function(step) {
+      getSubsteps(step).forEach(function(el) {
+        el.classList.remove('substep-active');
+      });
+    };
+
     var prev = function() {
+      // First try to deactivate a substep
+      if (deactivateLastSubstep()) {
+        return activeStep;
+      }
+      // Then go to previous slide
       var prev = steps.indexOf(activeStep) - 1;
       prev = prev >= 0 ? steps[prev] : steps[steps.length - 1];
       return goto(prev);
     };
 
     var next = function() {
+      // First try to activate a substep
+      if (activateNextSubstep()) {
+        return activeStep;
+      }
+      // Then go to next slide
       var next = steps.indexOf(activeStep) + 1;
       next = next < steps.length ? steps[next] : steps[0];
       return goto(next);

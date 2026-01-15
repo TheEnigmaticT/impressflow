@@ -5,6 +5,9 @@ import { splitIntoSlides } from './slides.js';
 import { detectLayout } from './layouts.js';
 import { parseImages } from './images.js';
 
+// Supported transform types for word-level animations
+const TRANSFORM_TYPES = ['appear', 'reveal', 'slideup', 'slideleft', 'skew', 'glow', 'big', 'highlight'];
+
 /**
  * Parse markdown content into a SlideAST
  */
@@ -39,9 +42,12 @@ function parseContent(slideContent: string): string {
   // Remove speaker notes before parsing
   const contentWithoutNotes = slideContent.replace(/<!--\s*NOTES:\s*[\s\S]*?-->/gi, '');
 
-  // Remove layout directives for cleaner output
-  const contentWithoutDirectives = contentWithoutNotes.replace(
-    /^:::\s*[\w-]+\s*$[\s\S]*?^:::\s*$/gm,
+  // Process transform blocks first (before other directives)
+  const contentWithTransforms = parseTransformBlocks(contentWithoutNotes);
+
+  // Remove remaining layout directives for cleaner output
+  const contentWithoutDirectives = contentWithTransforms.replace(
+    /^:::\s*(?!transform-)[\w-]+\s*$[\s\S]*?^:::\s*$/gm,
     (match) => {
       // Keep the content inside the directive, just remove the markers
       return match.replace(/^:::\s*[\w-]+\s*$/m, '').replace(/^:::\s*$/m, '').trim();
@@ -55,6 +61,37 @@ function parseContent(slideContent: string): string {
 }
 
 /**
+ * Parse transform blocks for word-level animations
+ *
+ * Syntax:
+ *   ::: transform-appear
+ *   This text will >>>fade in<<< word by word
+ *   :::
+ *
+ * Supported transforms: appear, reveal, slideup, slideleft, skew, glow, big, highlight
+ */
+function parseTransformBlocks(content: string): string {
+  const transformRegex = /:::\s*transform-(\w+)\s*\n([\s\S]*?)\n\s*:::/g;
+
+  return content.replace(transformRegex, (match, transformType: string, blockContent: string) => {
+    // Validate transform type
+    if (!TRANSFORM_TYPES.includes(transformType)) {
+      return match; // Return unchanged if unknown transform
+    }
+
+    // Process word markers: >>>text<<< becomes <span class="substep substep-{type}">text</span>
+    let substepIndex = 0;
+    const processedContent = blockContent.replace(/>>>([^<]+)<<</g, (_markerMatch, text: string) => {
+      substepIndex++;
+      return `<span class="substep substep-${transformType}" data-substep="${substepIndex}">${text}</span>`;
+    });
+
+    // Wrap in a div with transform class
+    return `<div class="transform-block transform-${transformType}">\n${processedContent}\n</div>`;
+  });
+}
+
+/**
  * Extract speaker notes from HTML comments
  *
  * Syntax: <!-- NOTES: speaker notes here -->
@@ -63,6 +100,9 @@ function extractNotes(slideContent: string): string {
   const match = slideContent.match(/<!--\s*NOTES:\s*([\s\S]*?)-->/i);
   return match ? match[1].trim() : '';
 }
+
+// Export transform constants
+export { TRANSFORM_TYPES };
 
 // Re-export sub-modules
 export { extractFrontmatter } from './frontmatter.js';

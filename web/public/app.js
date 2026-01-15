@@ -27,7 +27,7 @@ const downloadBtn = document.getElementById('download-btn');
 let currentTab = 'markdown';
 let generatedHtml = null;
 
-// Embedded impress.js (no CDN dependency)
+// Embedded impress.js with substep support (no CDN dependency)
 const IMPRESS_JS = `(function(document, window) {
   'use strict';
   var pfx = (function() {
@@ -82,6 +82,43 @@ const IMPRESS_JS = `(function(document, window) {
       event.initCustomEvent(eventName, true, true, detail);
       el.dispatchEvent(event);
     };
+
+    // Substep management
+    var getSubsteps = function(step) {
+      return step ? Array.from(step.querySelectorAll('.substep')) : [];
+    };
+    var getActiveSubsteps = function(step) {
+      return step ? Array.from(step.querySelectorAll('.substep.substep-active')) : [];
+    };
+    var getInactiveSubsteps = function(step) {
+      return step ? Array.from(step.querySelectorAll('.substep:not(.substep-active)')) : [];
+    };
+    var activateNextSubstep = function() {
+      var inactive = getInactiveSubsteps(activeStep);
+      if (inactive.length > 0) {
+        inactive[0].classList.add('substep-active');
+        triggerEvent(inactive[0], 'impress:substep:enter', {});
+        return true;
+      }
+      return false;
+    };
+    var deactivatePrevSubstep = function() {
+      var active = getActiveSubsteps(activeStep);
+      if (active.length > 0) {
+        var last = active[active.length - 1];
+        last.classList.remove('substep-active');
+        triggerEvent(last, 'impress:substep:leave', {});
+        return true;
+      }
+      return false;
+    };
+    var activateAllSubsteps = function(step) {
+      getSubsteps(step).forEach(function(s) { s.classList.add('substep-active'); });
+    };
+    var deactivateAllSubsteps = function(step) {
+      getSubsteps(step).forEach(function(s) { s.classList.remove('substep-active'); });
+    };
+
     var initStep = function(el, idx) {
       var data = el.dataset;
       var step = {
@@ -125,9 +162,14 @@ const IMPRESS_JS = `(function(document, window) {
       else if (typeof step === 'string') step = document.getElementById(step);
       return (step && step.id && stepsData['impress-' + step.id]) ? step : null;
     };
-    var goto = function(el) {
+    var goto = function(el, fromSubstep) {
       if (!initialized || !(el = getStep(el))) return false;
-      if (activeStep) { activeStep.classList.remove('active'); body.classList.remove('impress-on-' + activeStep.id); }
+      if (activeStep) {
+        activeStep.classList.remove('active');
+        body.classList.remove('impress-on-' + activeStep.id);
+        // Deactivate substeps when leaving a slide
+        if (!fromSubstep) deactivateAllSubsteps(activeStep);
+      }
       el.classList.add('active');
       body.classList.add('impress-on-' + el.id);
       var step = stepsData['impress-' + el.id];
@@ -150,8 +192,23 @@ const IMPRESS_JS = `(function(document, window) {
       window.location.hash = '#/' + el.id;
       return el;
     };
-    var prev = function() { var p = steps.indexOf(activeStep) - 1; return goto(p >= 0 ? steps[p] : steps[steps.length - 1]); };
-    var next = function() { var n = steps.indexOf(activeStep) + 1; return goto(n < steps.length ? steps[n] : steps[0]); };
+    var prev = function() {
+      // First try to deactivate a substep
+      if (deactivatePrevSubstep()) return activeStep;
+      // Otherwise go to previous slide (with all substeps active)
+      var p = steps.indexOf(activeStep) - 1;
+      var target = p >= 0 ? steps[p] : steps[steps.length - 1];
+      var result = goto(target);
+      if (result) activateAllSubsteps(result);
+      return result;
+    };
+    var next = function() {
+      // First try to activate a substep
+      if (activateNextSubstep()) return activeStep;
+      // Otherwise go to next slide
+      var n = steps.indexOf(activeStep) + 1;
+      return goto(n < steps.length ? steps[n] : steps[0]);
+    };
     if (!impressSupported) { body.classList.add('impress-not-supported'); return; }
     root.addEventListener('impress:init', function() { steps = Array.from(steps); goto(getElementFromHash() || steps[0]); }, false);
     window.addEventListener('hashchange', function() { var t = getElementFromHash(); if (t && t !== activeStep) goto(t); }, false);
@@ -178,50 +235,259 @@ theme: tech-dark
 layout: spiral
 ---
 
-# Welcome to ImpressFlow
+# ImpressFlow
 
-Transform your ideas into stunning 3D presentations
+::: transform-slideup
+>>>Transform your ideas<<< into >>>stunning 3D presentations<<<
+:::
 
----
-
-# Simple Markdown Input
-
-Write your content in familiar Markdown syntax:
-- Headers become slide titles
-- Use \`---\` to separate slides
-- Add code blocks, quotes, and more
+*Press → or Space to advance through animations*
 
 ---
 
-# Beautiful Themes
+# The Problem
 
-Choose from 5 professional themes:
-- **Tech Dark** - Modern, sleek design
-- **Clean Light** - Minimal, professional
-- **Creative** - Bold and colorful
-- **Corporate** - Classic business style
-- **Workshop** - Hands-on, technical
+::: transform-appear
+Most presentation tools are >>>boring<<<, >>>flat<<<, and >>>forgettable<<<.
+:::
+
+Your audience deserves better.
 
 ---
 
-# 3D Layouts
+# The Solution
 
-Six unique spatial arrangements:
-1. Spiral - Classic impress.js flow
-2. Grid - Organized matrix
-3. Herringbone - Zigzag pattern
-4. Zoom - Depth-based navigation
-5. Sphere - 3D orbital layout
-6. Cascade - Waterfall effect
+::: transform-reveal
+>>>ImpressFlow<<< turns simple Markdown into >>>cinematic experiences<<<.
+:::
+
+::: transform-highlight
+Write in Markdown. >>>Present in 3D.<<<
+:::
+
+---
+
+# Two-Column Layouts
+
+::: two-column
++++
+### Write This
+
+\`\`\`markdown
+::: two-column
++++
+Content on the left
++++
+Content on the right
+:::
+\`\`\`
+
++++
+### Get This
+
+Professional side-by-side layouts for comparisons, features, or image + text combinations.
+
+*No CSS required.*
+:::
+
+---
+
+# Three-Column Layouts
+
+::: three-column
++++
+### Plan
+
+- Define your story
+- Write in Markdown
+- Choose a theme
+
++++
+### Create
+
+- Pick a 3D layout
+- Add animations
+- Generate images
+
++++
+### Present
+
+- Fullscreen mode
+- Keyboard navigation
+- Wow your audience
+:::
+
+---
+
+# Static Images
+
+Embed any image with standard Markdown:
+
+![Demo](https://placehold.co/800x300/1a1a2e/00d4ff?text=Your+Logo+%E2%80%A2+Screenshots+%E2%80%A2+Diagrams)
+
+\`![Alt text](https://your-image-url.com/image.png)\`
+
+---
+
+# AI-Generated Images
+
+Or let AI create visuals from your descriptions:
+
+![image: Abstract glowing neural network with flowing data streams](placeholder)
+
+\`![image: Your description here](placeholder)\`
+
+*Enable AI Images and add your Gemini API key*
+
+---
+
+# Animation: Appear
+
+::: transform-appear
+Every presentation tells a story. Build tension by revealing >>>one idea<<< at a >>>time<<<.
+:::
+
+Perfect for bullet points and key messages.
+
+---
+
+# Animation: Reveal
+
+::: transform-reveal
+>>>Transform-reveal<<< creates a >>>dramatic curtain wipe<<< that >>>unveils your message<<<.
+:::
+
+Great for reveals and announcements.
+
+---
+
+# Animation: Slide Up
+
+::: transform-slideup
+Content >>>rises into view<<< with >>>smooth motion<<< creating >>>visual flow<<<.
+:::
+
+Ideal for lists and sequential information.
+
+---
+
+# Animation: Slide Left
+
+::: transform-slideleft
+Ideas >>>enter the stage<<< from >>>off-screen<<< bringing >>>dynamic energy<<<.
+:::
+
+Use for introductions and new concepts.
+
+---
+
+# Animation: Highlight
+
+::: transform-highlight
+When you need to emphasize the >>>most important point<<<, highlight it.
+:::
+
+::: transform-highlight
+>>>This is your key takeaway.<<<
+:::
+
+---
+
+# Animation: Glow
+
+::: transform-glow
+Add >>>dramatic emphasis<<< with a >>>pulsing glow<<< effect.
+:::
+
+Perfect for calls-to-action and important numbers.
+
+---
+
+# Animation: Big
+
+::: transform-big
+Sometimes you just need to go >>>BIG<<<.
+:::
+
+::: transform-big
+>>>$1M<<< in revenue. >>>10x<<< growth. >>>100%<<< satisfaction.
+:::
+
+---
+
+# Animation: Skew
+
+::: transform-skew
+Add >>>attitude<<< and >>>edge<<< to your message.
+:::
+
+Great for bold statements and disruptive ideas.
+
+---
+
+# 6 Professional Themes
+
+::: two-column
++++
+### Dark Themes
+- **Tech Dark** - Cyberpunk vibes
+- **Creative** - Bold gradients
+- **Workshop** - Hacker aesthetic
+
++++
+### Light Themes
+- **Clean Light** - Minimal elegance
+- **Corporate** - Business professional
+- **Crowd Tamers** - Startup fresh
+:::
+
+---
+
+# 6 Spatial Layouts
+
+::: two-column
++++
+### Classic
+1. **Spiral** - Flowing journey
+2. **Grid** - Organized matrix
+3. **Cascade** - Waterfall effect
+
++++
+### Dynamic
+4. **Herringbone** - Zigzag energy
+5. **Zoom** - Depth navigation
+6. **Sphere** - 3D orbital
+:::
 
 ---
 
 # Get Started
 
-1. Write your Markdown
-2. Choose theme and layout
-3. Click Generate
-4. Present!
+::: transform-slideup
+>>>1. Write<<< your content in Markdown
+:::
+
+::: transform-slideup
+>>>2. Choose<<< your theme and layout
+:::
+
+::: transform-slideup
+>>>3. Add<<< animations and images
+:::
+
+::: transform-slideup
+>>>4. Present<<< in stunning 3D
+:::
+
+---
+
+# Ready?
+
+::: transform-big
+>>>Start creating.<<<
+:::
+
+Edit the Markdown on the left and click **Generate Presentation**.
 `;
 
 // Initialize
@@ -393,7 +659,7 @@ async function generatePresentation(markdown, theme, layout, apiKey, generateIma
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${frontmatter.title || 'ImpressFlow Presentation'}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="${getGoogleFontsUrl(finalTheme)}" rel="stylesheet">
   <style>
     ${getThemeCSS(finalTheme)}
     ${getBaseCSS()}
@@ -676,12 +942,61 @@ function markdownToHtmlBasic(md) {
     .replace(/(<\/h\d>|<\/ul>|<\/ol>|<\/pre>|<\/blockquote>|<\/div>)<\/p>/g, '$1');
 }
 
-// Simple markdown to HTML conversion with column support
+// Valid transform types
+const TRANSFORM_TYPES = ['appear', 'reveal', 'slideup', 'slideleft', 'skew', 'glow', 'big', 'highlight'];
+
+// Parse transform block directives and markers
+function parseTransformBlocks(md) {
+  // Match ::: transform-{type} ... ::: blocks
+  const transformRegex = /:::\s*transform-(\w+)\s*\n([\s\S]*?)\n\s*:::/g;
+  let result = md;
+  let hasTransforms = false;
+
+  result = result.replace(transformRegex, (match, transformType, content) => {
+    // Validate transform type
+    if (!TRANSFORM_TYPES.includes(transformType)) {
+      return match; // Return unchanged if invalid type
+    }
+
+    hasTransforms = true;
+
+    // Process >>>text<<< markers within the block
+    // Each marker becomes a substep with the specified transform
+    let substepIndex = 0;
+    const processedContent = content.replace(/>>>([^<]+)<<</g, (markerMatch, text) => {
+      substepIndex++;
+      return `<span class="substep substep-${transformType}" data-substep="${substepIndex}">${text}</span>`;
+    });
+
+    // Wrap in a transform container
+    return `<div class="transform-block transform-${transformType}">${markdownToHtmlBasic(processedContent)}</div>`;
+  });
+
+  return { html: result, hasTransforms };
+}
+
+// Simple markdown to HTML conversion with column and transform support
 function markdownToHtml(md) {
   // First check for column layouts
   const columnResult = parseColumnLayout(md);
   if (columnResult.hasColumns) {
-    return columnResult.html;
+    // Also process transforms within column content
+    const transformResult = parseTransformBlocks(columnResult.html);
+    return transformResult.html;
+  }
+
+  // Check for transform blocks
+  const transformResult = parseTransformBlocks(md);
+  if (transformResult.hasTransforms) {
+    // Process remaining markdown that's not in transform blocks
+    return transformResult.html.replace(/(<div class="transform-block[^>]*>)([\s\S]*?)(<\/div>)/g, (match, open, content, close) => {
+      return open + content + close;
+    }).split(/(<div class="transform-block[\s\S]*?<\/div>)/).map((part, i) => {
+      if (part.startsWith('<div class="transform-block')) {
+        return part;
+      }
+      return markdownToHtmlBasic(part);
+    }).join('');
   }
 
   return markdownToHtmlBasic(md);
@@ -821,10 +1136,10 @@ function calculatePositions(count, layout) {
   return positions;
 }
 
-// Theme CSS
-function getThemeCSS(theme) {
-  const themes = {
-    'tech-dark': {
+// Theme configurations including colors and fonts
+const THEME_CONFIG = {
+  'tech-dark': {
+    colors: {
       '--background': '#0a0a0f',
       '--foreground': '#ffffff',
       '--primary': '#00d4ff',
@@ -832,7 +1147,15 @@ function getThemeCSS(theme) {
       '--accent': '#f472b6',
       '--muted': '#8888aa',
     },
-    'clean-light': {
+    fonts: {
+      heading: "'JetBrains Mono', 'Fira Code', monospace",
+      body: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      code: "'JetBrains Mono', 'Fira Code', monospace",
+    },
+    googleFonts: 'family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700',
+  },
+  'clean-light': {
+    colors: {
       '--background': '#ffffff',
       '--foreground': '#1a1a1a',
       '--primary': '#2563eb',
@@ -840,7 +1163,15 @@ function getThemeCSS(theme) {
       '--accent': '#f59e0b',
       '--muted': '#666666',
     },
-    'creative': {
+    fonts: {
+      heading: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      body: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      code: "'JetBrains Mono', monospace",
+    },
+    googleFonts: 'family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400',
+  },
+  'creative': {
+    colors: {
       '--background': '#fef3c7',
       '--foreground': '#1e1b4b',
       '--primary': '#ec4899',
@@ -848,7 +1179,15 @@ function getThemeCSS(theme) {
       '--accent': '#06b6d4',
       '--muted': '#6b7280',
     },
-    'corporate': {
+    fonts: {
+      heading: "'Space Grotesk', sans-serif",
+      body: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      code: "'JetBrains Mono', monospace",
+    },
+    googleFonts: 'family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400',
+  },
+  'corporate': {
+    colors: {
       '--background': '#f8fafc',
       '--foreground': '#0f172a',
       '--primary': '#1e40af',
@@ -856,7 +1195,15 @@ function getThemeCSS(theme) {
       '--accent': '#059669',
       '--muted': '#64748b',
     },
-    'workshop': {
+    fonts: {
+      heading: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      body: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      code: "'JetBrains Mono', monospace",
+    },
+    googleFonts: 'family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400',
+  },
+  'workshop': {
+    colors: {
       '--background': '#18181b',
       '--foreground': '#fafafa',
       '--primary': '#22c55e',
@@ -864,7 +1211,15 @@ function getThemeCSS(theme) {
       '--accent': '#eab308',
       '--muted': '#a1a1aa',
     },
-    'crowd-tamers': {
+    fonts: {
+      heading: "'Caveat', cursive",
+      body: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      code: "'JetBrains Mono', monospace",
+    },
+    googleFonts: 'family=Caveat:wght@400;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400',
+  },
+  'crowd-tamers': {
+    colors: {
       '--background': '#F7FAFC',
       '--foreground': '#1A202C',
       '--primary': '#61cf70',
@@ -872,11 +1227,31 @@ function getThemeCSS(theme) {
       '--accent': '#61cf70',
       '--muted': '#718096',
     },
-  };
+    fonts: {
+      heading: "'Questrial', 'Inter', sans-serif",
+      body: "'Quicksand', 'Inter', sans-serif",
+      code: "'JetBrains Mono', monospace",
+    },
+    googleFonts: 'family=Questrial&family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400',
+  },
+};
 
-  const colors = themes[theme] || themes['tech-dark'];
+// Get Google Fonts URL for a theme
+function getGoogleFontsUrl(theme) {
+  const config = THEME_CONFIG[theme] || THEME_CONFIG['tech-dark'];
+  return `https://fonts.googleapis.com/css2?${config.googleFonts}&display=swap`;
+}
+
+// Theme CSS
+function getThemeCSS(theme) {
+  const config = THEME_CONFIG[theme] || THEME_CONFIG['tech-dark'];
+  const { colors, fonts } = config;
+
   return `:root {
     ${Object.entries(colors).map(([k, v]) => `${k}: ${v};`).join('\n    ')}
+    --font-heading: ${fonts.heading};
+    --font-body: ${fonts.body};
+    --font-code: ${fonts.code};
   }`;
 }
 
@@ -897,7 +1272,7 @@ function getBaseCSS() {
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: var(--font-body);
       color: var(--foreground);
     }
 
@@ -934,6 +1309,7 @@ function getBaseCSS() {
     }
 
     .slide h1 {
+      font-family: var(--font-heading);
       font-size: 3.5rem;
       font-weight: 700;
       color: var(--primary);
@@ -942,6 +1318,7 @@ function getBaseCSS() {
     }
 
     .slide h2 {
+      font-family: var(--font-heading);
       font-size: 2.5rem;
       font-weight: 600;
       color: var(--secondary);
@@ -949,6 +1326,7 @@ function getBaseCSS() {
     }
 
     .slide h3 {
+      font-family: var(--font-heading);
       font-size: 1.75rem;
       font-weight: 600;
       color: var(--foreground);
@@ -977,7 +1355,7 @@ function getBaseCSS() {
       background: rgba(0,0,0,0.2);
       padding: 2px 8px;
       border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-code);
       font-size: 0.9em;
     }
 
@@ -992,6 +1370,7 @@ function getBaseCSS() {
     .slide pre code {
       background: none;
       padding: 0;
+      font-family: var(--font-code);
       font-size: 1.1rem;
       line-height: 1.5;
     }
@@ -1081,6 +1460,133 @@ function getBaseCSS() {
       max-height: 400px;
       object-fit: contain;
       border-radius: 8px;
+    }
+
+    /* ========================================
+       SUBSTEP ANIMATIONS
+       ======================================== */
+
+    /* Base substep styles - hidden by default */
+    .substep {
+      opacity: 0;
+      transition: all 0.6s ease-out;
+    }
+
+    /* Active substep - revealed */
+    .substep.substep-active {
+      opacity: 1;
+    }
+
+    /* Transform block container */
+    .transform-block {
+      display: inline;
+    }
+
+    /* ---- APPEAR: Simple fade in ---- */
+    .substep-appear {
+      opacity: 0;
+    }
+    .substep-appear.substep-active {
+      opacity: 1;
+    }
+
+    /* ---- REVEAL: Mask slides off (clip-path wipe) ---- */
+    .substep-reveal {
+      opacity: 1;
+      clip-path: inset(0 100% 0 0);
+      transition: clip-path 0.8s ease-out;
+    }
+    .substep-reveal.substep-active {
+      clip-path: inset(0 0 0 0);
+    }
+
+    /* ---- SLIDEUP: Slides up from below ---- */
+    .substep-slideup {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    .substep-slideup.substep-active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ---- SLIDELEFT: Slides in from right ---- */
+    .substep-slideleft {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    .substep-slideleft.substep-active {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* ---- SKEW: Starts normal, ends skewed ---- */
+    .substep-skew {
+      opacity: 0;
+      transform: skewX(0deg);
+    }
+    .substep-skew.substep-active {
+      opacity: 1;
+      transform: skewX(-8deg);
+    }
+
+    /* ---- GLOW: Fade in with pulsing glow ---- */
+    .substep-glow {
+      opacity: 0;
+      text-shadow: none;
+    }
+    .substep-glow.substep-active {
+      opacity: 1;
+      animation: glowPulse 2s ease-in-out infinite;
+    }
+    @keyframes glowPulse {
+      0%, 100% {
+        text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary), 0 0 30px var(--primary);
+      }
+      50% {
+        text-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary);
+      }
+    }
+
+    /* ---- BIG: Scales up to 1.3x ---- */
+    .substep-big {
+      opacity: 0;
+      transform: scale(1);
+      display: inline-block;
+    }
+    .substep-big.substep-active {
+      opacity: 1;
+      transform: scale(1.3);
+      transform-origin: center center;
+    }
+
+    /* ---- HIGHLIGHT: Animated background highlight ---- */
+    .substep-highlight {
+      position: relative;
+      opacity: 1;
+    }
+    .substep-highlight::before {
+      content: '';
+      position: absolute;
+      left: -4px;
+      right: -4px;
+      top: -2px;
+      bottom: -2px;
+      background: var(--secondary);
+      z-index: -1;
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform 0.5s ease-out;
+      border-radius: 4px;
+    }
+    .substep-highlight.substep-active::before {
+      transform: scaleX(1);
+    }
+
+    /* Ensure highlighted text is readable */
+    .substep-highlight.substep-active {
+      color: var(--background);
+      transition: color 0.3s ease-out 0.2s;
     }
   `;
 }
