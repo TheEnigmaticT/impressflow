@@ -186,16 +186,17 @@ export function generateLayoutCSS(): string {
   transform: translateX(0);
 }
 
-/* SKEW: Starts normal, ends skewed */
+/* SKEW: Starts normal, ends skewed with random angle */
 .substep-skew {
   opacity: 0;
   transform: skewX(0deg);
   display: inline-block;
+  --skew-angle: -8deg; /* fallback */
 }
 
 .substep-skew.substep-active {
   opacity: 1;
-  transform: skewX(-8deg);
+  transform: skewX(var(--skew-angle));
 }
 
 /* GLOW: Fade in with pulsing glow */

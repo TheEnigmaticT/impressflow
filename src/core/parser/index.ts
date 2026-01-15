@@ -110,6 +110,11 @@ function parseTransformBlocks(content: string): string {
     let substepIndex = 0;
     const processedContent = blockContent.replace(/>>>([^<]+)<<</g, (_markerMatch, text: string) => {
       substepIndex++;
+      // For skew, add a random skew angle between 1-17 degrees, positive or negative
+      if (transformType === 'skew') {
+        const angle = (Math.floor(Math.random() * 17) + 1) * (Math.random() < 0.5 ? -1 : 1);
+        return `<span class="substep substep-${transformType}" data-substep="${substepIndex}" style="--skew-angle: ${angle}deg">${text}</span>`;
+      }
       return `<span class="substep substep-${transformType}" data-substep="${substepIndex}">${text}</span>`;
     });
 

@@ -1012,6 +1012,11 @@ function parseTransformBlocks(md) {
     let substepIndex = 0;
     const processedContent = content.replace(/>>>([^<]+)<<</g, (markerMatch, text) => {
       substepIndex++;
+      // For skew, add a random skew angle between 1-17 degrees, positive or negative
+      if (transformType === 'skew') {
+        const angle = (Math.floor(Math.random() * 17) + 1) * (Math.random() < 0.5 ? -1 : 1);
+        return `<span class="substep substep-${transformType}" data-substep="${substepIndex}" style="--skew-angle: ${angle}deg">${text}</span>`;
+      }
       return `<span class="substep substep-${transformType}" data-substep="${substepIndex}">${text}</span>`;
     });
 
@@ -1610,15 +1615,16 @@ function getBaseCSS() {
       transform: translateX(0);
     }
 
-    /* ---- SKEW: Starts normal, ends skewed ---- */
+    /* ---- SKEW: Starts normal, ends skewed with random angle ---- */
     .substep-skew {
       opacity: 0;
       transform: skewX(0deg);
       display: inline-block;
+      --skew-angle: -8deg; /* fallback */
     }
     .substep-skew.substep-active {
       opacity: 1;
-      transform: skewX(-8deg);
+      transform: skewX(var(--skew-angle));
     }
 
     /* ---- GLOW: Fade in with pulsing glow ---- */
