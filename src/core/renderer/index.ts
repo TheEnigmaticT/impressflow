@@ -87,7 +87,7 @@ function generateFullHTML(params: TemplateParams): string {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=1920">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>${escapeHtml(params.title)}</title>
   ${params.fontLinks}
   <style>
@@ -140,12 +140,30 @@ function generateFullHTML(params: TemplateParams): string {
     </div>
   </div>
 
+  <!-- Navigation hover/touch zones -->
+  <div id="nav-prev" class="nav-zone nav-prev" onclick="impress().prev()">
+    <div class="nav-icon">&lt;</div>
+  </div>
+  <div id="nav-next" class="nav-zone nav-next" onclick="impress().next()">
+    <div class="nav-icon">&gt;</div>
+  </div>
+
+  <!-- Mobile swipe hint (shown once on touch devices) -->
+  <div id="mobile-hint" class="mobile-hint" style="display:none;">← Swipe to navigate →</div>
+
   ${params.lazyImages ? generateLazyLoaderScript(params.apiEndpoint) : ''}
 
   <script>
     ${IMPRESS_JS_SOURCE}
   </script>
-  <script>impress().init();</script>
+  <script>
+    impress().init();
+    // Show mobile hint on touch devices (only once per device)
+    if ('ontouchstart' in window && !localStorage.getItem('impressflow-mobile-hint')) {
+      document.getElementById('mobile-hint').style.display = 'block';
+      localStorage.setItem('impressflow-mobile-hint', 'shown');
+    }
+  </script>
 </body>
 </html>`;
 }

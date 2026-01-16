@@ -23,9 +23,106 @@ const previewPlaceholder = document.querySelector('.preview-placeholder');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 const downloadBtn = document.getElementById('download-btn');
 
+// AI Modal elements
+const aiAssistBtn = document.getElementById('ai-assist-btn');
+const aiModal = document.getElementById('ai-modal');
+const modalClose = document.getElementById('modal-close');
+const modalBackdrop = aiModal?.querySelector('.modal-backdrop');
+const aiOptions = aiModal?.querySelectorAll('.ai-option');
+const aiPromptTextarea = document.getElementById('ai-prompt');
+const copyPromptBtn = document.getElementById('copy-prompt-btn');
+
 // State
 let currentTab = 'markdown';
 let generatedHtml = null;
+let selectedAI = null;
+
+// AI Service URLs
+const AI_URLS = {
+  chatgpt: 'https://chat.openai.com/',
+  claude: 'https://claude.ai/',
+  gemini: 'https://gemini.google.com/',
+};
+
+// ImpressFlow prompt for AI assistants
+const IMPRESSFLOW_PROMPT = `I want you to help me create a presentation in ImpressFlow markdown format. ImpressFlow converts markdown to 3D presentations using impress.js.
+
+Here's the format I need:
+
+\`\`\`markdown
+---
+title: My Presentation Title
+theme: tech-dark
+layout: line
+---
+
+# First Slide Title
+
+Content for the first slide. Use bullet points:
+- Point one
+- Point two
+- Point three
+
+---
+
+# Second Slide Title
+
+More content here. You can use **bold** and *italic* text.
+
+^
+---
+
+# Third Slide (Appears Below Second)
+
+The ^ marker above means this slide appears below the previous one (for line layout).
+
+---
+
+# Fourth Slide
+
+Continue horizontally after a vertical move.
+\`\`\`
+
+**Key Format Rules:**
+1. Start with frontmatter (---) containing title, theme, and layout
+2. Separate slides with --- (horizontal rule)
+3. Use # for slide titles (H1)
+4. Use ## and ### for subheadings
+5. Use ^ on its own line before --- to make the next slide appear BELOW (vertical) instead of to the right (horizontal)
+
+**Available Themes:** tech-dark, clean-light, creative, corporate, workshop, crowd-tamers
+
+**Available Layouts:** line (supports ^ for vertical moves), spiral, grid, herringbone, zoom, sphere, cascade
+
+**For AI-generated images, use this syntax:**
+![image: A description of the image you want](placeholder)
+
+Example: ![image: A futuristic cityscape with neon lights](placeholder)
+
+**For column layouts:**
+\`\`\`
+::: two-column
++++
+### Left Column
+Content here
++++
+### Right Column
+More content
+:::
+\`\`\`
+
+**For text animations (substeps), wrap content in transform blocks:**
+\`\`\`
+::: transform-appear
+>>>This text<<< will fade in, then >>>this text<<< will fade in after.
+:::
+\`\`\`
+
+Animation types: appear, reveal, slideup, slideleft, skew, glow, big, highlight
+
+Now, please help me create a presentation about: [DESCRIBE YOUR TOPIC HERE]
+
+Please create a complete markdown presentation following this format. Make it engaging with a mix of bullet points, short paragraphs, and consider using column layouts for comparison slides.`;
 
 // Embedded impress.js with substep support (no CDN dependency)
 const IMPRESS_JS = `(function(document, window) {
@@ -223,6 +320,31 @@ const IMPRESS_JS = `(function(document, window) {
       var t = e.target;
       while (t && t !== document.documentElement) { if (t.classList.contains('step')) { if (t !== activeStep) goto(t); break; } t = t.parentNode; }
     }, false);
+    // Touch/swipe navigation for mobile
+    var touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+    var SWIPE_THRESHOLD = 50, SWIPE_TIMEOUT = 300;
+    document.addEventListener('touchstart', function(e) {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+    document.addEventListener('touchend', function(e) {
+      var deltaX = e.changedTouches[0].clientX - touchStartX;
+      var deltaY = e.changedTouches[0].clientY - touchStartY;
+      var deltaTime = Date.now() - touchStartTime;
+      if (deltaTime > SWIPE_TIMEOUT) return;
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+        if (deltaX < 0) next(); else prev();
+      }
+    }, { passive: true });
+    // Orientation change handling
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() {
+        windowScale = computeWindowScale(config);
+        css(root, { transform: perspective(config.perspective / windowScale) + scale(windowScale) });
+        if (activeStep) goto(activeStep, 0);
+      }, 100);
+    }, false);
     roots['impress-root-' + rootId] = { init: init, goto: goto, next: next, prev: prev };
     return roots['impress-root-' + rootId];
   };
@@ -328,13 +450,23 @@ Embed any image with standard Markdown:
 
 # AI-Generated Images
 
-Or let AI create visuals from your descriptions:
+::: two-column
++++
+### The Syntax
+
+Use this format in your markdown:
+
+\`![image: description](placeholder)\`
+
+The AI generates images matching your description in the theme's style.
+
+*Enable AI Images + add Gemini API key*
+
++++
+### Example Output
 
 ![image: Abstract glowing neural network with flowing data streams](placeholder)
-
-\`![image: Your description here](placeholder)\`
-
-*Enable AI Images and add your Gemini API key*
+:::
 
 ^
 ---
@@ -554,6 +686,67 @@ function init() {
       previewIframe.style.height = rect.height + 'px';
     }
   });
+
+  // AI Assistant Modal
+  if (aiAssistBtn && aiModal) {
+    // Set prompt text
+    if (aiPromptTextarea) {
+      aiPromptTextarea.value = IMPRESSFLOW_PROMPT;
+    }
+
+    // Open modal
+    aiAssistBtn.addEventListener('click', () => {
+      aiModal.style.display = 'flex';
+      // Reset selection
+      selectedAI = null;
+      aiOptions.forEach(opt => opt.classList.remove('selected'));
+    });
+
+    // Close modal
+    const closeModal = () => {
+      aiModal.style.display = 'none';
+    };
+
+    modalClose?.addEventListener('click', closeModal);
+    modalBackdrop?.addEventListener('click', closeModal);
+
+    // AI option selection
+    aiOptions?.forEach(option => {
+      option.addEventListener('click', () => {
+        // Update selection
+        aiOptions.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        selectedAI = option.dataset.ai;
+
+        // Copy to clipboard and open AI service
+        navigator.clipboard.writeText(IMPRESSFLOW_PROMPT).then(() => {
+          showToast('Prompt copied! Opening ' + selectedAI.charAt(0).toUpperCase() + selectedAI.slice(1) + '...', 'success');
+          setTimeout(() => {
+            window.open(AI_URLS[selectedAI], '_blank');
+            closeModal();
+          }, 500);
+        }).catch(() => {
+          showToast('Could not copy to clipboard', 'error');
+        });
+      });
+    });
+
+    // Copy prompt button
+    copyPromptBtn?.addEventListener('click', () => {
+      navigator.clipboard.writeText(IMPRESSFLOW_PROMPT).then(() => {
+        showToast('Prompt copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Could not copy to clipboard', 'error');
+      });
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && aiModal.style.display === 'flex') {
+        closeModal();
+      }
+    });
+  }
 }
 
 // Tab switching
@@ -716,8 +909,18 @@ async function generatePresentation(markdown, theme, layout, apiKey, generateIma
     <div class="nav-icon">&gt;</div>
   </div>
 
+  <!-- Mobile swipe hint (shown once on touch devices) -->
+  <div id="mobile-hint" class="mobile-hint" style="display:none;">← Swipe to navigate →</div>
+
   <script>${IMPRESS_JS}<\/script>
-  <script>impress().init();<\/script>
+  <script>
+    impress().init();
+    // Show mobile hint on touch devices (only once per device)
+    if ('ontouchstart' in window && !localStorage.getItem('impressflow-mobile-hint')) {
+      document.getElementById('mobile-hint').style.display = 'block';
+      localStorage.setItem('impressflow-mobile-hint', 'shown');
+    }
+  <\/script>
 </body>
 </html>`;
 }
@@ -1768,6 +1971,70 @@ function getBaseCSS() {
     /* Hide navigation in overview */
     .impress-on-overview .nav-zone {
       display: none;
+    }
+
+    /* ========================================
+       MOBILE TOUCH SUPPORT
+       ======================================== */
+
+    /* Mobile-friendly navigation zones */
+    @media (pointer: coarse), (max-width: 768px) {
+      .nav-zone {
+        opacity: 0.4;           /* Always visible on touch devices */
+        width: 15%;             /* Larger touch targets */
+      }
+
+      .nav-zone:active {
+        opacity: 0.8;
+        background: rgba(255,255,255,0.15);
+      }
+
+      .nav-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+      }
+
+      /* Adjust slide content for mobile */
+      .step.slide {
+        padding: 40px;
+      }
+
+      .slide h1 {
+        font-size: 2.5rem;
+      }
+
+      .slide h2 {
+        font-size: 1.75rem;
+      }
+
+      .slide p, .slide ul, .slide ol {
+        font-size: 1.25rem;
+      }
+    }
+
+    /* Swipe hint for first-time mobile users */
+    .mobile-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-family: var(--font-body);
+      z-index: 10000;
+      pointer-events: none;
+      animation: hintFadeInOut 4s ease-in-out forwards;
+    }
+
+    @keyframes hintFadeInOut {
+      0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      70% { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
     }
   `;
 }

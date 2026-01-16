@@ -392,6 +392,33 @@ export const IMPRESS_JS_SOURCE = `
       }
     }, false);
 
+    // Touch/swipe navigation for mobile
+    var touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+    var SWIPE_THRESHOLD = 50, SWIPE_TIMEOUT = 300;
+    document.addEventListener('touchstart', function(e) {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+    document.addEventListener('touchend', function(e) {
+      var deltaX = e.changedTouches[0].clientX - touchStartX;
+      var deltaY = e.changedTouches[0].clientY - touchStartY;
+      var deltaTime = Date.now() - touchStartTime;
+      if (deltaTime > SWIPE_TIMEOUT) return;
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+        if (deltaX < 0) next(); else prev();
+      }
+    }, { passive: true });
+
+    // Orientation change handling
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() {
+        windowScale = computeWindowScale(config);
+        css(root, { transform: perspective(config.perspective / windowScale) + scale(windowScale) });
+        if (activeStep) goto(activeStep);
+      }, 100);
+    }, false);
+
     roots['impress-root-' + rootId] = {
       init: init,
       goto: goto,

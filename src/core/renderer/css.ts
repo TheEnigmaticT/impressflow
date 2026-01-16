@@ -250,5 +250,119 @@ export function generateLayoutCSS(): string {
 .substep-highlight.substep-active::before {
   transform: scaleX(1);
 }
+
+/* ========================================
+   MOBILE TOUCH SUPPORT
+   ======================================== */
+
+/* Navigation zones for mobile */
+.nav-zone {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 8%;
+  z-index: 9999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.nav-zone:hover {
+  opacity: 1;
+}
+
+.nav-prev {
+  left: 0;
+  background: linear-gradient(to right, rgba(0,0,0,0.3), transparent);
+}
+
+.nav-next {
+  right: 0;
+  background: linear-gradient(to left, rgba(0,0,0,0.3), transparent);
+}
+
+.nav-icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: bold;
+  color: white;
+  backdrop-filter: blur(4px);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.nav-zone:hover .nav-icon {
+  transform: scale(1.1);
+  background: rgba(255,255,255,0.3);
+}
+
+/* Mobile-friendly navigation zones */
+@media (pointer: coarse), (max-width: 768px) {
+  .nav-zone {
+    opacity: 0.4;
+    width: 15%;
+  }
+
+  .nav-zone:active {
+    opacity: 0.8;
+    background: rgba(255,255,255,0.15);
+  }
+
+  .nav-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+  }
+
+  /* Adjust slide content for mobile */
+  .step.slide {
+    padding: 40px;
+  }
+
+  .slide-title {
+    font-size: 2.5rem;
+  }
+
+  .slide-content {
+    font-size: 1.25rem;
+  }
+}
+
+/* Hide navigation in overview */
+.impress-on-overview .nav-zone {
+  display: none;
+}
+
+/* Swipe hint for first-time mobile users */
+.mobile-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  z-index: 10000;
+  pointer-events: none;
+  animation: hintFadeInOut 4s ease-in-out forwards;
+}
+
+@keyframes hintFadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  70% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
 `;
 }
